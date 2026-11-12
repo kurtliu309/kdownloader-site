@@ -1,0 +1,1350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>KDownloader</title>
+<meta name="description" content="KDownloader is a portable video downloader for Windows 10 and 11. Paste a link, pick a format, and the file lands on your disk.">
+<meta property="og:title" content="KDownloader — portable video downloader for Windows">
+<meta property="og:description" content="Paste a link, pick a quality, and the file lands on your disk. One portable .exe for Windows 10 and 11, in English and Chinese.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://kurtliu309.github.io/kdownloader-site/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Crect%20x='2'%20y='2'%20width='60'%20height='60'%20rx='16'%20fill='%23f4e641'/%3E%3Cpath%20d='M32%2014v26M20%2029l12%2012%2012-12'%20fill='none'%20stroke='%230b0b0b'%20stroke-width='6'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3Cpath%20d='M18%2050h28'%20fill='none'%20stroke='%230b0b0b'%20stroke-width='6'%20stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&amp;family=DM+Serif+Display&amp;family=Space+Grotesk:wght@400;500;600;700&amp;display=swap">
+<style>
+  /* ============ KDownloader design tokens ============ */
+  /* Palette constants for both themes. Only these raw values live in the sheet;
+     every component reads the theme-mapped tokens below. */
+  :root {
+    --c-dark-bg: #0b0b0b;
+    --c-dark-surface: #161616;
+    --c-dark-paper: #f2f1ec;
+    --c-dark-dim: #8c8a84;
+    --c-dark-ink: #0b0b0b;
+    --c-dark-line: #2e2e2e;
+    --c-dark-line-strong: #4a4a4a;
+    --c-dark-yellow: #f4e641;
+    --c-dark-lilac: #a99ec1;
+    --c-dark-olive: #8a8417;
+    --c-dark-mint: #dbe4d8;
+    --c-dark-red: #ff5a2c;
+    --c-dark-err: #ff5a2c;
+
+    --c-light-bg: #f2e3cf;
+    --c-light-surface: #fbebd6;
+    --c-light-paper: #121212;
+    --c-light-dim: #7a6e5f;
+    --c-light-ink: #121212;
+    --c-light-on-ink: #f6eee2;
+    --c-light-line: #dccbb3;
+    --c-light-line-strong: #1d1a16;
+    --c-light-yellow: #f6d43c;
+    --c-light-lilac: #b9b0d6;
+    --c-light-olive: #a39a35;
+    --c-light-mint: #fbebd6;
+    --c-light-red: #ef5f1a;
+    --c-light-err: #c4400c;
+
+    /* Dark is the default */
+    --bg: var(--c-dark-bg);
+    --surface: var(--c-dark-surface);
+    --paper: var(--c-dark-paper);
+    --dim: var(--c-dark-dim);
+    --ink: var(--c-dark-ink);
+    --on-ink: var(--c-dark-paper);
+    --line: var(--c-dark-line);
+    --line-strong: var(--c-dark-line-strong);
+    --yellow: var(--c-dark-yellow);
+    --lilac: var(--c-dark-lilac);
+    --olive: var(--c-dark-olive);
+    --mint: var(--c-dark-mint);
+    --red: var(--c-dark-red);
+    --err: var(--c-dark-err);
+
+    --card-shadow: none;
+    --card-shadow-hover: none;
+    --focus-shadow: 0 0 0 12px var(--c-dark-bg);
+    --float-shadow: 0 8px 24px rgba(0, 0, 0, .45);
+    --input-glow: 0 0 0 3px rgba(255, 90, 44, .28);
+    color-scheme: dark;
+
+    /* Spacing, radii, strokes, motion — copied from tokens.css */
+    --space-1: 4px;
+    --space-1h: 6px;
+    --space-2: 8px;
+    --space-2h: 10px;
+    --space-3: 12px;
+    --space-3h: 14px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --r: 22px;
+    --r-field: 16px;
+    --r-thumb: 14px;
+    --r-sm: 12px;
+    --r-row: 8px;
+    --r-pill: 999px;
+    --stroke-hair: 1px;
+    --stroke: 1.5px;
+    --dur-press: 60ms;
+    --dur-hover: 160ms;
+    --dur-stagger: 30ms;
+    --dur-enter: 420ms;
+    --ease-out: cubic-bezier(.2, .8, .2, 1);
+    --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+
+    --font-headline: "DM Serif Display", "Noto Serif SC", Georgia, SimSun, serif;
+    --font-display: "Space Grotesk", "HarmonyOS Sans SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    --font-mono: "DM Mono", "HarmonyOS Sans SC", Consolas, monospace;
+  }
+
+  @media not all { /* dark by default; light only via the toggle */
+    :root:not([data-theme="dark"]) {
+      --bg: var(--c-light-bg);
+      --surface: var(--c-light-surface);
+      --paper: var(--c-light-paper);
+      --dim: var(--c-light-dim);
+      --ink: var(--c-light-ink);
+      --on-ink: var(--c-light-on-ink);
+      --line: var(--c-light-line);
+      --line-strong: var(--c-light-line-strong);
+      --yellow: var(--c-light-yellow);
+      --lilac: var(--c-light-lilac);
+      --olive: var(--c-light-olive);
+      --mint: var(--c-light-mint);
+      --red: var(--c-light-red);
+      --err: var(--c-light-err);
+      --card-shadow: 0 22px 44px -18px rgba(92, 58, 24, .28), 0 3px 10px -4px rgba(92, 58, 24, .14);
+      --card-shadow-hover: 0 14px 28px -14px rgba(92, 58, 24, .45);
+      --focus-shadow: 0 30px 60px -20px rgba(92, 58, 24, .35);
+      --float-shadow: 0 8px 24px rgba(92, 58, 24, .25);
+      --input-glow: 0 0 0 3px rgba(239, 95, 26, .3);
+      color-scheme: light;
+    }
+  }
+
+  :root[data-theme="light"] {
+    --bg: var(--c-light-bg);
+    --surface: var(--c-light-surface);
+    --paper: var(--c-light-paper);
+    --dim: var(--c-light-dim);
+    --ink: var(--c-light-ink);
+    --on-ink: var(--c-light-on-ink);
+    --line: var(--c-light-line);
+    --line-strong: var(--c-light-line-strong);
+    --yellow: var(--c-light-yellow);
+    --lilac: var(--c-light-lilac);
+    --olive: var(--c-light-olive);
+    --mint: var(--c-light-mint);
+    --red: var(--c-light-red);
+    --err: var(--c-light-err);
+    --card-shadow: 0 22px 44px -18px rgba(92, 58, 24, .28), 0 3px 10px -4px rgba(92, 58, 24, .14);
+    --card-shadow-hover: 0 14px 28px -14px rgba(92, 58, 24, .45);
+    --focus-shadow: 0 30px 60px -20px rgba(92, 58, 24, .35);
+    --float-shadow: 0 8px 24px rgba(92, 58, 24, .25);
+    --input-glow: 0 0 0 3px rgba(239, 95, 26, .3);
+    color-scheme: light;
+  }
+
+  /* Inside colored cards and solid buttons, "paper" means the light on-ink value. */
+  :root[data-theme="light"] .card:not(.k),
+  :root[data-theme="light"] .solid { --paper: var(--on-ink); }
+  @media not all { /* dark by default; light only via the toggle */
+    :root:not([data-theme="dark"]) .card:not(.k),
+    :root:not([data-theme="dark"]) .solid { --paper: var(--on-ink); }
+  }
+
+  /* Scoped token sets for the two theme previews in the Look section. */
+  .theme-dark {
+    --bg: var(--c-dark-bg);
+    --paper: var(--c-dark-paper);
+    --dim: var(--c-dark-dim);
+    --ink: var(--c-dark-ink);
+    --on-ink: var(--c-dark-paper);
+    --line: var(--c-dark-line);
+    --line-strong: var(--c-dark-line-strong);
+    --mint: var(--c-dark-mint);
+    --yellow: var(--c-dark-yellow);
+    --lilac: var(--c-dark-lilac);
+    --olive: var(--c-dark-olive);
+    --red: var(--c-dark-red);
+    --card-shadow: none;
+  }
+  .theme-light {
+    --bg: var(--c-light-bg);
+    --paper: var(--c-light-paper);
+    --dim: var(--c-light-dim);
+    --ink: var(--c-light-ink);
+    --on-ink: var(--c-light-on-ink);
+    --line: var(--c-light-line);
+    --line-strong: var(--c-light-line-strong);
+    --mint: var(--c-light-mint);
+    --yellow: var(--c-light-yellow);
+    --lilac: var(--c-light-lilac);
+    --olive: var(--c-light-olive);
+    --red: var(--c-light-red);
+    --card-shadow: 0 22px 44px -18px rgba(92, 58, 24, .28), 0 3px 10px -4px rgba(92, 58, 24, .14);
+  }
+
+  /* ============ Base ============ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--paper);
+    font-family: var(--font-display);
+    font-size: 13px;
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, p { margin-top: 0; }
+  a { color: inherit; }
+  .hl, .title-big, .big, .mid, .ico, .hero-h1, .sec-h2, .card-title, .dl-title { font-synthesis: none; }
+  .mono { font-family: var(--font-mono); }
+  .num { font-family: var(--font-display); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .dim { color: var(--dim); }
+  .i { display: inline-flex; width: 14px; height: 14px; flex-shrink: 0; }
+  .i svg { display: block; width: 100%; height: 100%; }
+  .logo { display: block; flex-shrink: 0; }
+
+  /* ============ Type scale ============ */
+  .title-big { font-family: var(--font-headline); font-size: 44px; line-height: 1.02; font-weight: 400; letter-spacing: -.01em; }
+  .big { font-family: var(--font-headline); font-size: 44px; line-height: 1; font-weight: 400; letter-spacing: -.01em; }
+  .mid { font-family: var(--font-headline); font-size: 21px; line-height: 1.15; font-weight: 400; letter-spacing: -.01em; }
+  .stat-num { font-family: var(--font-display); font-size: 44px; line-height: 1; font-weight: 500; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .body { font-family: var(--font-display); font-size: 13px; line-height: 1.4; font-weight: 400; }
+  .btn-sm { font-family: var(--font-display); font-size: 12px; line-height: 1.2; font-weight: 400; }
+  .small { font-family: var(--font-display); font-size: 11px; line-height: 1.4; font-weight: 400; }
+  .lbl { font-family: var(--font-display); font-size: 10.5px; line-height: 1.4; font-weight: 400; letter-spacing: .02em; }
+  .mono-table { font-family: var(--font-mono); font-size: 11.5px; line-height: 1.4; font-weight: 400; }
+
+  /* ============ Cards ============ */
+  .card {
+    border-radius: var(--r);
+    padding: 14px 16px;
+    color: var(--ink);
+    background: var(--mint);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+    position: relative;
+    box-shadow: var(--card-shadow);
+  }
+  .card.m { background: var(--mint); }
+  .card.y { background: var(--yellow); }
+  .card.l { background: var(--lilac); }
+  .card.o { background: var(--olive); }
+  .card.r { background: var(--red); }
+  .card.k {
+    background: transparent;
+    color: var(--paper);
+    border: 1.5px solid var(--line-strong);
+  }
+  .card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+  .card-top .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card-top .small { flex-shrink: 0; opacity: .72; }
+
+  /* ============ Pills and buttons ============ */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
+    border: 1.5px solid currentColor;
+    border-radius: var(--r-pill);
+    padding: 5px 14px;
+    font-size: 13px;
+    line-height: 1.2;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .pill.sm { padding: 3px 10px; font-size: 12px; }
+  .pill.solid { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .pill.solid:hover { filter: brightness(1.4); }
+  a.pill, button.pill { transition: transform .16s var(--ease-spring), filter .15s, background .15s, color .15s, border-color .15s; }
+  a.pill:hover, button.pill:hover { transform: scale(1.04); }
+  a.pill:active, button.pill:active { transform: scale(.94); transition-duration: var(--dur-press); }
+  .pill:not(.solid):hover { background: color-mix(in srgb, currentColor 10%, transparent); }
+  .dark-pill { color: var(--paper); border-color: var(--line-strong); }
+  .dark-pill:not(.solid):hover { background: color-mix(in srgb, var(--paper) 9%, transparent); }
+  .cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--yellow);
+    color: var(--ink);
+    border: 1.5px solid var(--yellow);
+    border-radius: var(--r-pill);
+    padding: 11px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.2;
+    text-decoration: none;
+    transition: transform .16s var(--ease-spring), filter .15s;
+  }
+  .cta:hover { transform: scale(1.04); filter: brightness(1.05); }
+  .cta:active { transform: scale(.94); transition-duration: var(--dur-press); }
+  .cta .i { width: 15px; height: 15px; }
+  .cta-solid {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--ink);
+    color: var(--on-ink);
+    border: 1.5px solid var(--ink);
+    border-radius: var(--r-pill);
+    padding: 11px 22px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.2;
+    text-decoration: none;
+    transition: transform .16s var(--ease-spring), filter .15s;
+  }
+  .cta-solid:hover { transform: scale(1.04); filter: brightness(1.12); }
+  .cta-solid:active { transform: scale(.94); transition-duration: var(--dur-press); }
+
+  /* ============ Round icon buttons ============ */
+  .ico {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--paper);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-family: var(--font-headline);
+    font-weight: 700;
+    font-size: 14px;
+    border: none;
+    line-height: 1;
+  }
+  .ico.sm { width: 22px; height: 22px; font-size: 11px; }
+  .ico .i { width: 13px; height: 13px; }
+  .ico.sm .i { width: 11px; height: 11px; }
+  .ico.ghost { background: transparent; color: inherit; border: 1.5px solid currentColor; }
+  .rowico {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: rgba(0, 0, 0, .09);
+    color: inherit;
+    border: none;
+  }
+  .rowico .i { width: 13px; height: 13px; }
+
+  /* ============ Tags ============ */
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 9px;
+    border-radius: 99px;
+    border: 1px solid currentColor;
+    font-size: 11px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    line-height: 1.4;
+  }
+  .tag.kind-full { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .tag.kind-audio { border-style: dashed; }
+
+  /* ============ Segmented control ============ */
+  .seg { display: flex; border: 1.5px solid var(--ink); border-radius: 99px; overflow: hidden; max-width: 100%; }
+  .seg > span {
+    padding: 5px 11px;
+    font-size: 12px;
+    line-height: 1.3;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .seg > span + span { border-left: 1.5px solid var(--ink); }
+  .seg > span.on { background: var(--ink); color: var(--paper); }
+
+  /* ============ Inputs (visual only in the hero preview) ============ */
+  .demo-field {
+    border: 1.5px solid var(--ink);
+    border-radius: var(--r-field);
+    background: rgba(255, 255, 255, .28);
+    padding: 8px 12px;
+    font-size: 12px;
+    line-height: 1.3;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ============ Rows, bars, thumbs ============ */
+  .rows { display: flex; flex-direction: column; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 6px 0; min-width: 0; border-top: 1px solid rgba(0, 0, 0, .18); }
+  .row:first-child { border-top: none; }
+  .row .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+  .row .v { font-size: 12px; white-space: nowrap; flex-shrink: 0; }
+  .bar { position: relative; height: 10px; flex: 1; min-width: 40px; }
+  .bar::before { content: ''; position: absolute; left: 0; right: 0; top: 4.5px; height: 1px; background: currentColor; opacity: .45; }
+  .bar i { position: absolute; left: 0; top: 2px; height: 6px; border-radius: 6px; background: currentColor; }
+  .thumb {
+    width: 118px;
+    height: 66px;
+    border-radius: var(--r-thumb);
+    background: var(--ink);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .thumb.ph::after {
+    content: '';
+    border-left: 14px solid var(--paper);
+    border-top: 9px solid transparent;
+    border-bottom: 9px solid transparent;
+    margin-left: 4px;
+  }
+  .gap { flex: 1; }
+
+  /* ============ Page shell ============ */
+  .wrap {
+    width: 100%;
+    max-width: 1120px;
+    margin-inline: auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 0;
+  }
+
+  /* ============ Header ============ */
+  .site-head {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .head-in { display: flex; align-items: center; gap: 12px; padding-block: 10px; }
+  .brand { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; flex-shrink: 0; }
+  .brand .logo { width: 24px; height: 24px; }
+  .brand-name { font-family: var(--font-display); font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+  .brand-ver { font-size: 10px; color: var(--dim); }
+  .nav { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+  .nav a {
+    padding: 7px 10px;
+    border-radius: var(--r-pill);
+    font-size: 13px;
+    color: var(--dim);
+    text-decoration: none;
+    transition: color .15s, background .15s;
+  }
+  .nav a:hover { color: var(--paper); background: color-mix(in srgb, var(--paper) 8%, transparent); }
+  .theme-toggle { color: var(--paper); flex-shrink: 0; }
+  .head-in .theme-toggle { margin-left: 4px; }
+  .nav + .theme-toggle { margin-left: 0; }
+
+  /* ============ Hero ============ */
+  .hero { padding-block: clamp(32px, 4.5vw, 56px) clamp(44px, 6vw, 76px); scroll-margin-top: 64px; }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.02fr) minmax(0, .98fr);
+    gap: clamp(28px, 5vw, 64px);
+    align-items: center;
+  }
+  .hero-copy { min-width: 0; }
+  .eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10.5px;
+    line-height: 1.4;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--dim);
+    font-weight: 500;
+  }
+  .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); flex-shrink: 0; }
+  .eyebrow-logo { width: 18px; height: 18px; display: inline-flex; flex-shrink: 0; }
+  .hero-h1 {
+    font-family: var(--font-headline);
+    font-size: clamp(38px, 8vw, 76px);
+    line-height: .98;
+    letter-spacing: -.015em;
+    font-weight: 400;
+    margin: 12px 0 10px;
+    white-space: nowrap;
+  }
+  .hero-claim {
+    font-family: var(--font-display);
+    font-size: clamp(18px, 2.1vw, 22px);
+    line-height: 1.32;
+    letter-spacing: -.01em;
+    font-weight: 500;
+    margin: 0 0 12px;
+    max-width: 30ch;
+  }
+  .hero-lede { font-size: 15px; line-height: 1.55; margin: 0 0 22px; max-width: 47ch; color: var(--paper); opacity: .74; }
+  .hero-cta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .hero-cta .pill { padding: 10px 18px; font-size: 13px; }
+  .hero-meta { margin-top: 14px; color: var(--dim); }
+
+  .hero-demo { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .step { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .step-mark { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 10.5px; line-height: 1; color: var(--red); }
+  .step-mark::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+  .step-card { gap: 9px; padding: 14px 16px; }
+  .input-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+  .input-actions .small { opacity: .7; }
+  .video-row { display: flex; gap: 12px; align-items: center; min-width: 0; }
+  .video-meta { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .demo-title {
+    font-family: var(--font-headline);
+    font-size: 20px;
+    line-height: 1.12;
+    letter-spacing: -.01em;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+  }
+  .demo-sub { font-size: 10.5px; line-height: 1.3; opacity: .72; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .demo-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+
+  /* Format table */
+  .ft { border-radius: var(--r-sm); background: rgba(0, 0, 0, .08); padding: 0 4px; min-width: 0; }
+  .ft-head, .ft-row {
+    display: grid;
+    grid-template-columns: 54px minmax(50px, 1fr) 44px 42px 46px 24px;
+    gap: 4px;
+    align-items: center;
+    min-width: 0;
+  }
+  .ft-head {
+    padding: 7px 6px;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    line-height: 1.2;
+    font-weight: 500;
+    opacity: .62;
+    border-bottom: 1px solid rgba(0, 0, 0, .2);
+  }
+  .ft-row {
+    padding: 4px 6px;
+    border-top: 1px solid rgba(0, 0, 0, .12);
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    line-height: 1.4;
+  }
+  .ft-head + .ft-row { border-top: none; }
+  .ft-head > span, .ft-row > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ft .tag { justify-self: start; font-size: 9.5px; padding: 0 6px; line-height: 1.5; }
+  .ft-size { text-align: right; }
+  .ft-head .ft-size { text-align: right; }
+  .ft .rowico { width: 22px; height: 22px; justify-self: end; }
+  .ft .rowico .i { width: 11px; height: 11px; }
+  .dc-foot { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding-top: 9px; border-top: 1px solid rgba(0, 0, 0, .2); min-width: 0; }
+  .demo-preview { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: 10px; line-height: 1.4; }
+  .hero-demo .pill, .hero-demo .rowico { cursor: default; }
+  .hero-demo .pill:hover { transform: none; }
+
+  /* Queue preview */
+  .sq-main { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .demo-pct { font-family: var(--font-display); font-size: 38px; line-height: 1; font-weight: 500; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .demo-side { opacity: .72; }
+  .qrow { display: flex; flex-direction: column; gap: 5px; padding: 6px 0; border-top: 1px solid rgba(0, 0, 0, .18); min-width: 0; }
+  .qrow:first-child { border-top: none; padding-top: 0; }
+  .qrow-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+  .qname { font-size: 11.5px; line-height: 1.3; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .qval { font-family: var(--font-mono); font-size: 10px; flex-shrink: 0; }
+  .qfoot { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding-top: 9px; border-top: 1px solid rgba(0, 0, 0, .2); }
+
+  /* ============ Section shell ============ */
+  .sec { padding-block: clamp(44px, 6.5vw, 80px); border-top: 1px solid var(--line); scroll-margin-top: 60px; }
+  .sec-head { max-width: 720px; margin-bottom: clamp(20px, 3vw, 30px); }
+  .sec-h2 {
+    font-family: var(--font-headline);
+    font-size: clamp(30px, 4.4vw, 46px);
+    line-height: 1.02;
+    letter-spacing: -.01em;
+    font-weight: 400;
+    margin: 8px 0 10px;
+    text-wrap: balance;
+  }
+  .sec-p { font-size: 14.5px; line-height: 1.5; margin: 0; max-width: 62ch; color: var(--paper); opacity: .72; }
+  .card-h2 { font-family: var(--font-headline); font-size: clamp(24px, 3vw, 32px); line-height: 1.08; letter-spacing: -.01em; font-weight: 400; margin: 6px 0 8px; text-wrap: balance; }
+
+  /* ============ Features ============ */
+  .features-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 12px; }
+  .f-card { padding: 16px 18px; gap: 9px; }
+  .f-card .card-top { align-items: flex-start; }
+  .span-4 { grid-column: span 4; }
+  .span-5 { grid-column: span 5; }
+  .span-7 { grid-column: span 7; }
+  .card-title {
+    font-family: var(--font-headline);
+    font-size: 21px;
+    line-height: 1.12;
+    font-weight: 400;
+    letter-spacing: -.01em;
+    margin: 2px 0 0;
+    text-wrap: balance;
+  }
+  .card-body { font-size: 13px; line-height: 1.45; margin: 0; opacity: .82; max-width: 54ch; }
+  .f-list { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .f-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 5px 8px;
+    border-radius: var(--r-row);
+    background: rgba(0, 0, 0, .08);
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    line-height: 1.4;
+  }
+  .f-item .i { width: 12px; height: 12px; }
+  .f-txt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .f-item .tag { margin-left: auto; font-family: var(--font-display); font-size: 9.5px; }
+  .f-tags { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+  .f-line {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    line-height: 1.4;
+    padding: 5px 8px;
+    border-radius: var(--r-row);
+    background: rgba(0, 0, 0, .08);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .f-note { font-size: 10.5px; opacity: .7; }
+  .f-between { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .f-card .rowico { width: 24px; height: 24px; }
+
+  /* Concurrency demo */
+  .conc { border: 1.5px solid var(--ink); border-radius: var(--r-field); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .conc-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .conc-top .lbl { opacity: .8; }
+  .conc-num { font-family: var(--font-display); font-size: 26px; line-height: 1; font-weight: 500; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .ticks { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; }
+  .ticks span { height: 16px; border-radius: 3px; background: rgba(0, 0, 0, .14); }
+  .ticks span.on { background: var(--red); }
+  .conc-scale { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 9.5px; line-height: 1; opacity: .6; }
+  .seg-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  /* ============ Sites ============ */
+  .sites-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
+    gap: 16px 28px;
+    padding: 20px 22px;
+    align-items: start;
+  }
+  .sites-p { font-size: 13.5px; line-height: 1.5; margin: 0; opacity: .78; max-width: 46ch; }
+  .sites-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sites-grid span {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    font-size: 13.5px;
+    line-height: 1.2;
+    font-weight: 700;
+    letter-spacing: -.005em;
+    padding: 5px 14px;
+    border: 1.5px solid currentColor;
+    border-radius: 99px;
+  }
+  .sites-more { margin-top: 10px; color: var(--dim); }
+  .limit-note {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    border-top: 1px solid var(--line);
+    padding-top: 12px;
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--paper);
+    opacity: .66;
+  }
+  .limit-note .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); flex-shrink: 0; margin-top: 5px; }
+
+  /* ============ Look ============ */
+  .swatches { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+  .sw { min-height: 116px; justify-content: space-between; gap: 6px; padding: 14px 16px; }
+  .sw-mint { background: var(--mint); }
+  .sw-yellow { background: var(--yellow); }
+  .sw-lilac { background: var(--lilac); }
+  .sw-red { background: var(--red); }
+  .sw-olive { background: var(--olive); }
+  .sw .lbl { opacity: .7; }
+  .sw-name { font-family: var(--font-headline); font-size: 23px; line-height: 1; letter-spacing: -.01em; }
+  .sw-hex { font-family: var(--font-mono); font-size: 11px; line-height: 1.3; }
+  .sw-role { font-size: 10.5px; line-height: 1.3; opacity: .65; }
+  .look-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-bottom: 12px; }
+  .type-card, .geom-card { padding: 16px 18px; gap: 10px; }
+  .type-row { display: flex; align-items: center; gap: 14px; padding-top: 10px; border-top: 1px solid var(--line); min-width: 0; }
+  .type-row:first-of-type { border-top: none; padding-top: 0; }
+  .type-sample { flex: 0 0 auto; min-width: 64px; font-size: 38px; line-height: 1; }
+  .type-sample.serif { font-family: var(--font-headline); }
+  .type-sample.sans { font-family: var(--font-display); font-weight: 500; letter-spacing: -.03em; }
+  .type-sample.mono-s { font-family: var(--font-mono); font-size: 17px; letter-spacing: -.02em; }
+  .type-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .type-meta b { font-size: 12.5px; font-weight: 600; }
+  .type-meta span { font-size: 10.5px; line-height: 1.4; color: var(--dim); }
+  .spec-row { display: flex; align-items: baseline; gap: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .spec-row:first-of-type { border-top: none; padding-top: 0; }
+  .spec-num { font-family: var(--font-display); font-size: 30px; line-height: 1; font-weight: 500; letter-spacing: -.03em; font-variant-numeric: tabular-nums; min-width: 62px; }
+  .spec-txt { font-size: 11.5px; line-height: 1.4; color: var(--dim); }
+  .spec-demo { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-top: 10px; border-top: 1px solid var(--line); }
+
+  .themes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+  .theme-demo {
+    border-radius: var(--r-field);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: var(--bg);
+    color: var(--paper);
+    border: 1.5px solid var(--line-strong);
+    box-shadow: var(--card-shadow);
+    min-width: 0;
+  }
+  .td-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .td-top .lbl { color: var(--dim); }
+  .td-title { font-family: var(--font-headline); font-size: clamp(20px, 2.4vw, 26px); line-height: 1.1; letter-spacing: -.01em; margin: 2px 0; }
+  .td-meta { font-family: var(--font-mono); font-size: 10.5px; line-height: 1.3; color: var(--dim); }
+  .td-colors { display: flex; gap: 6px; }
+  .td-colors span { width: 22px; height: 22px; border-radius: 7px; display: block; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 20%, transparent); }
+  .c-mint { background: var(--mint); }
+  .c-yellow { background: var(--yellow); }
+  .c-lilac { background: var(--lilac); }
+  .c-red { background: var(--red); }
+  .c-olive { background: var(--olive); }
+  .td-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .td-chip { display: inline-flex; align-items: center; background: var(--ink); color: var(--on-ink); border-radius: var(--r-pill); padding: 4px 12px; font-size: 11.5px; line-height: 1.3; }
+  .theme-demo .tag { font-size: 10.5px; }
+  .theme-note { margin: 10px 0 0; color: var(--dim); }
+
+  /* ============ Download ============ */
+  .dl-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, .75fr); gap: 12px; align-items: stretch; }
+  .dl-main { padding: 20px 22px; gap: 11px; }
+  .dl-title { font-family: var(--font-headline); font-size: clamp(32px, 4vw, 44px); line-height: 1.02; letter-spacing: -.01em; font-weight: 400; margin: 0; }
+  .dl-body { font-size: 14px; line-height: 1.5; margin: 0; opacity: .84; max-width: 46ch; }
+  .dl-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+  .dl-fine { font-size: 10.5px; line-height: 1.4; opacity: .7; margin-top: 2px; }
+  .dl-side { padding: 18px 20px; gap: 10px; }
+  .dl-side .mid { font-size: 22px; margin: 0; }
+  .dl-side .body { font-size: 12.5px; line-height: 1.5; margin: 0; opacity: .85; }
+  .dl-side b { font-weight: 600; }
+  .smart-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-top: 10px; border-top: 1px solid var(--line); }
+  .smart-arrow { color: var(--dim); font-family: var(--font-mono); font-size: 12px; }
+  .dl-run { display: flex; flex-direction: column; gap: 4px; border-top: 1px solid var(--line); padding-top: 10px; }
+  .dl-run .lbl { color: var(--dim); margin-bottom: 2px; }
+  .dl-run .row { padding: 4px 0; border-top: none; }
+  .dl-num { font-family: var(--font-mono); font-size: 10px; line-height: 1.4; color: var(--red); flex: 0 0 18px; }
+  .specs {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1.5px solid var(--line-strong);
+    border-radius: var(--r);
+    overflow: hidden;
+  }
+  .spec-cell { background: var(--bg); padding: 12px 16px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .spec-cell .lbl { color: var(--dim); }
+  .spec-val { font-size: 13px; line-height: 1.35; }
+
+  /* ============ Footer ============ */
+  .footer { border-top: 1px solid var(--line); padding-block: 28px; }
+  .footer-in { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px; }
+  .footer-brand { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; }
+  .footer-brand .logo { width: 20px; height: 20px; }
+  .footer-links { display: flex; flex-wrap: wrap; gap: 14px; margin-left: auto; }
+  .footer-links a { font-size: 12.5px; color: var(--dim); text-decoration: none; border-bottom: 1px solid transparent; }
+  .footer-links a:hover { color: var(--paper); border-bottom-color: currentColor; }
+  .footer-note { flex-basis: 100%; max-width: 760px; margin: 0; font-size: 11px; line-height: 1.45; color: var(--paper); opacity: .64; }
+  .footer-meta { flex-basis: 100%; margin: 0; font-size: 11px; color: var(--dim); }
+
+  /* ============ Focus ============ */
+  a:focus-visible, button:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+
+  /* ============ Motion ============ */
+  @keyframes kdl-rise {
+    from { transform: translateY(14px) scale(.985); }
+    to { transform: none; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .rise { animation: kdl-rise .55s var(--ease-out) both; animation-delay: calc(var(--i, 0) * 30ms); }
+    .card.hoverable { transition: transform .22s var(--ease-out), box-shadow .22s var(--ease-out), border-color .2s; }
+    .card.hoverable:hover { transform: translateY(-2px); box-shadow: var(--card-shadow-hover); }
+    .card.k.hoverable:hover { border-color: color-mix(in srgb, var(--line-strong) 70%, var(--paper)); }
+    .card.hoverable:active { transform: translateY(0) scale(.985); transition-duration: 80ms; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+
+  /* ============ Responsive ============ */
+  @media (max-width: 980px) {
+    .hero-grid { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+    .hero-copy { max-width: 640px; }
+    .hero-demo { max-width: 560px; }
+    .dl-grid { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 860px) {
+    .nav { display: none; }
+    .head-in .theme-toggle { margin-left: auto; }
+    .sites-card { grid-template-columns: minmax(0, 1fr); }
+    .look-split { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 760px) {
+    .features-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .features-grid > * { grid-column: auto; }
+    .themes { grid-template-columns: minmax(0, 1fr); }
+    .swatches { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .sw:last-child { grid-column: 1 / -1; }
+  }
+  @media (max-width: 620px) {
+    .features-grid { grid-template-columns: minmax(0, 1fr); }
+    .specs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 420px) {
+    .card { padding: 13px 14px; }
+    .step-card { padding: 13px 14px; }
+    .f-card { padding: 14px 15px; }
+    .brand-ver { display: none; }
+    .hero-h1 { font-size: clamp(34px, 9.6vw, 40px); }
+    .thumb { width: 92px; height: 52px; }
+    .thumb.ph::after { border-left-width: 11px; border-top-width: 7px; border-bottom-width: 7px; }
+    .demo-title { font-size: 18px; }
+    .ft-head, .ft-row { grid-template-columns: 46px minmax(36px, 1fr) 34px 30px 40px 22px; gap: 3px; }
+    .ft-head { font-size: 9px; padding-inline: 4px; }
+    .ft-row { font-size: 9.5px; padding-inline: 4px; }
+    .ft .tag { font-size: 8.5px; padding: 0 5px; }
+    .ft .rowico { width: 20px; height: 20px; }
+    .demo-preview { font-size: 9px; }
+    .hero-meta { font-size: 10.5px; }
+    .sw { min-height: 104px; }
+    .sw-name { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+<header class="site-head">
+  <div class="wrap head-in">
+    <a class="brand" href="#top">
+      <svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><rect x="2" y="2" width="60" height="60" rx="16" fill="var(--yellow)"/><path d="M32 14v26M20 29l12 12 12-12" fill="none" stroke="var(--ink)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 50h28" fill="none" stroke="var(--ink)" stroke-width="6" stroke-linecap="round"/></svg>
+      <span class="brand-name">KDownloader</span>
+      <span class="brand-ver mono">0.2.5</span>
+    </a>
+    <nav class="nav" aria-label="Page sections">
+      <a href="#features">Features</a>
+      <a href="#sites">Sites</a>
+      <a href="#look">Look</a>
+      <a href="#download">Download</a>
+      <a href="journey/">Dev journal</a>
+    </nav>
+    <button id="theme-toggle" class="pill sm dark-pill theme-toggle" type="button" aria-label="Switch to light theme">
+      <span class="theme-label">Light</span>
+    </button>
+  </div>
+</header>
+
+<main>
+  <section class="hero" id="top">
+    <div class="wrap hero-grid">
+      <div class="hero-copy rise">
+        <div class="eyebrow">
+          <span class="eyebrow-logo"><svg class="logo" viewBox="0 0 64 64" aria-hidden="true" width="18" height="18"><rect x="2" y="2" width="60" height="60" rx="16" fill="var(--yellow)"/><path d="M32 14v26M20 29l12 12 12-12" fill="none" stroke="var(--ink)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 50h28" fill="none" stroke="var(--ink)" stroke-width="6" stroke-linecap="round"/></svg></span>
+          Portable video downloader for Windows
+        </div>
+        <h1 class="hero-h1">KDownloader</h1>
+        <p class="hero-claim">Paste a link. Pick a quality. It lands on your disk.</p>
+        <p class="hero-lede">A desktop downloader for single videos and whole playlists. It resolves the URL, lists every format and size, then keeps the queue moving: pause it, resume it, retry what failed.</p>
+        <div class="hero-cta">
+          <a class="cta" href="https://github.com/kurtliu309/kdownloader-site/releases/latest/download/KDownloader.exe" target="_blank" rel="noopener">
+            <span class="i"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v7M4.8 6.8 8 10l3.2-3.2M3.5 13h9"/></svg></span>
+            Download v0.2.5
+          </a>
+          <a class="pill dark-pill" href="#features">Explore the features</a>
+        </div>
+        <div class="hero-meta small">Windows 10 / 11 · Portable single .exe · English and Chinese</div>
+      </div>
+
+      <div class="hero-demo rise" style="--i:1" aria-hidden="true">
+        <div class="step">
+          <div class="step-mark"><span>01</span></div>
+          <div class="card l step-card">
+            <div class="card-top"><span class="lbl">Paste URL</span><span class="small">Multiple at once</span></div>
+            <div class="demo-field">https://www.youtube.com/playlist?list=PL9tY0BWXOZFu…</div>
+            <div class="input-actions">
+              <span class="pill solid sm">Resolve</span>
+              <span class="small">Enter to resolve · Shift+Enter for new line</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-mark"><span>02</span></div>
+          <div class="card m step-card">
+            <div class="card-top">
+              <span class="lbl">Video · YouTube</span>
+              <span class="ico ghost sm"><span class="i"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></span></span>
+            </div>
+            <div class="video-row">
+              <div class="thumb ph"></div>
+              <div class="video-meta">
+                <div class="demo-title">Sunset timelapse over the bay</div>
+                <div class="demo-sub">Studio North · 4:12 · YouTube</div>
+                <div class="demo-tags"><span class="tag">1080p</span><span class="tag">MP4</span></div>
+              </div>
+            </div>
+            <div class="ft">
+              <div class="ft-head"><span>Type</span><span>Quality</span><span>Format</span><span>Codec</span><span class="ft-size">Size</span><span></span></div>
+              <div class="ft-row">
+                <span class="tag kind-full">Full</span><span>1080p</span><span>mp4</span><span>avc1</span><span class="ft-size">212 MB</span>
+                <span class="rowico"><span class="i"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v7M4.8 6.8 8 10l3.2-3.2M3.5 13h9"/></svg></span></span>
+              </div>
+              <div class="ft-row">
+                <span class="tag">Video</span><span>1440p</span><span>webm</span><span>vp9</span><span class="ft-size">168 MB</span>
+                <span class="rowico"><span class="i"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v7M4.8 6.8 8 10l3.2-3.2M3.5 13h9"/></svg></span></span>
+              </div>
+              <div class="ft-row">
+                <span class="tag kind-audio">Audio</span><span>128k</span><span>m4a</span><span>aac</span><span class="ft-size">4.2 MB</span>
+                <span class="rowico"><span class="i"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v7M4.8 6.8 8 10l3.2-3.2M3.5 13h9"/></svg></span></span>
+              </div>
+            </div>
+            <div class="dc-foot">
+              <span class="demo-preview">File name: VFX_20261113_sunset-bay.mp4</span>
+              <span class="pill solid sm">Download</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-mark"><span>03</span></div>
+          <div class="card r step-card">
+            <div class="card-top"><span class="lbl">Download queue · 3</span><span class="small">2 downloading</span></div>
+            <div class="sq-main"><span class="demo-pct">42%</span><span class="small demo-side">3 tasks · 1 paused</span></div>
+            <div class="qrow">
+              <div class="qrow-top"><span class="qname">Sunset timelapse over the bay</span><span class="qval">68%</span></div>
+              <div class="bar"><i style="width:68%"></i></div>
+            </div>
+            <div class="qrow">
+              <div class="qrow-top"><span class="qname">Mountain hike, ep. 3</span><span class="qval">34%</span></div>
+              <div class="bar"><i style="width:34%"></i></div>
+            </div>
+            <div class="qrow">
+              <div class="qrow-top"><span class="qname">Podcast ep. 12</span><span class="tag">Paused</span></div>
+              <div class="bar"><i style="width:12%"></i></div>
+            </div>
+            <div class="qfoot">
+              <span class="pill sm"><span class="i"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5.8 4v8M10.2 4v8" stroke-width="2"/></svg></span>Pause</span>
+              <span class="pill sm"><span class="i"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 4.1v7.8a.8.8 0 0 0 1.2.7l6-3.9a.8.8 0 0 0 0-1.4l-6-3.9a.8.8 0 0 0-1.2.7Z" fill="currentColor" stroke="none"/></svg></span>Resume</span>
+              <span class="gap"></span>
+              <span class="small">Concurrency 3</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="features">
+    <div class="wrap">
+      <div class="sec-head rise">
+        <div class="eyebrow"><span class="dot"></span>Features</div>
+        <h2 class="sec-h2">One window for the whole job.</h2>
+        <p class="sec-p">Resolve a link, choose a format, watch the queue, then find the file in Completed. Each step has a card and a control.</p>
+      </div>
+
+      <div class="features-grid">
+        <article class="card l f-card span-5 hoverable rise" style="--i:0">
+          <div class="card-top">
+            <span class="lbl">Resolve</span>
+            <span class="ico sm"><span class="i"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3.5v9M3.5 8h9"/></svg></span></span>
+          </div>
+          <h3 class="card-title">Paste a link, or ten</h3>
+          <p class="card-body">Drop in one URL or a block of text. KDownloader finds every link, resolves them together, and builds a card for each video or playlist.</p>
+          <div class="f-list">
+            <div class="f-item">
+              <span class="i"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 4.1v7.8a.8.8 0 0 0 1.2.7l6-3.9a.8.8 0 0 0 0-1.4l-6-3.9a.8.8 0 0 0-1.2.7Z" fill="currentColor" stroke="none"/></svg></span>
+              <span class="f-txt">youtube.com/watch?v=…</span><span class="tag">Video</span>
+            </div>
+            <div class="f-item">
+              <span class="i"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5a1 1 0 0 1 1-1h2.7l1.4 1.5h4.9a1 1 0 0 1 1 1v5.5a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1Z"/></svg></span>
+              <span class="f-txt">youtube.com/playlist?list=…</span><span class="tag">Playlist</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="card m f-card span-7 hoverable rise" style="--i:1">
+          <div class="card-top">
+            <span class="lbl">Formats</span>
+            <span class="ico sm"><span class="i"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v7M4.8 6.8 8 10l3.2-3.2M3.5 13h9"/></svg></span></span>
+          </div>
+          <h3 class="card-title">Every format, before you commit</h3>
+          <p class="card-body">Open the format table to see type, quality, container, codec and size. Download the merged file, video only, or audio only.</p>
+          <div class="f-line">1920×1080 · 30 fps · 42.3 MB · avc1</div>
+          <div class="f-tags"><span class="tag kind-full">Full</span><span class="tag">Video only</span><span class="tag kind-audio">Audio only</span></div>
+        </article>
+
+        <article class="card y f-card span-7 hoverable rise" style="--i:2">
+          <div class="card-top">
+            <span class="lbl">Queue</span>
+            <span class="ico sm"><span class="i"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5.8 4v8M10.2 4v8" stroke-width="2"/></svg></span></span>
+          </div>
+          <h3 class="card-title">A queue that waits for you</h3>
+          <p class="card-body">Run 1 to 10 downloads at once. Pause, resume, and retry what failed; errors are grouped as login, network, file system, or ffmpeg.</p>
+          <div class="conc">
+            <div class="conc-top"><span class="lbl">Simultaneous downloads</span><span class="conc-num">3</span></div>
+            <div class="ticks"><span class="on"></span><span class="on"></span><span class="on"></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+            <div class="conc-scale"><span>1</span><span>5</span><span>10</span></div>
+          </div>
+        </article>
+
+        <article class="card r f-card span-5 hoverable rise" style="--i:3">
+          <div class="card-top"><span class="lbl">Login</span><span class="small">Cookies stay local</span></div>
+          <h3 class="card-title">Sign in only when a site asks</h3>
+          <p class="card-body">A built-in login window handles sites that need an account. Close it and resolving continues by itself. Login data never leaves this computer.</p>
+          <div class="f-item"><span class="f-txt">Login required · Vimeo</span><span class="tag">Waiting</span></div>
+          <div class="f-tags"><span class="pill sm">Log in</span><span class="f-note">Close the window when done</span></div>
+        </article>
+
+        <article class="card o f-card span-4 hoverable rise" style="--i:4">
+          <div class="card-top">
+            <span class="lbl">Folders</span>
+            <span class="ico sm"><span class="i"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5a1 1 0 0 1 1-1h2.7l1.4 1.5h4.9a1 1 0 0 1 1 1v5.5a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1Z"/></svg></span></span>
+          </div>
+          <h3 class="card-title">Several folders, one naming rule</h3>
+          <p class="card-body">Keep a list of download folders and pick one per download. Add a prefix like VFX_{date}, or leave names untouched.</p>
+          <div class="f-list">
+            <div class="f-item">
+              <span class="i"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5a1 1 0 0 1 1-1h2.7l1.4 1.5h4.9a1 1 0 0 1 1 1v5.5a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1Z"/></svg></span>
+              <span class="f-txt">Videos</span><span class="tag">Current</span>
+            </div>
+            <div class="f-item">
+              <span class="i"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5a1 1 0 0 1 1-1h2.7l1.4 1.5h4.9a1 1 0 0 1 1 1v5.5a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1Z"/></svg></span>
+              <span class="f-txt">Videos\Shots</span>
+            </div>
+          </div>
+          <div class="f-line">VFX_{date}_title.mp4</div>
+        </article>
+
+        <article class="card m f-card span-4 hoverable rise" style="--i:5">
+          <div class="card-top">
+            <span class="lbl">Completed</span>
+            <span class="ico sm"><span class="i"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><g transform="rotate(35 8 8.5)"><path d="M8 1.5v5"/><path d="M5.6 6.5h4.8l1.3 6.5H4.3Z"/><path d="M6.9 9.6v3.4M9.1 9.6v3.4"/></g></svg></span></span>
+          </div>
+          <h3 class="card-title">A library that tidies itself</h3>
+          <p class="card-body">Search titles, filter by folder, and keep playlists grouped. Deleted files go to the Recycle Bin; missing records clear in one click.</p>
+          <div class="f-list">
+            <div class="f-item">
+              <span class="i"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10"/><path d="M6.5 4.5V3h3v1.5"/><path d="M4.5 4.5l.6 8.5h5.8l.6-8.5"/></svg></span>
+              <span class="f-txt">Delete → Recycle Bin</span>
+            </div>
+            <div class="f-item">
+              <span class="i"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><g transform="rotate(35 8 8.5)"><path d="M8 1.5v5"/><path d="M5.6 6.5h4.8l1.3 6.5H4.3Z"/><path d="M6.9 9.6v3.4M9.1 9.6v3.4"/></g></svg></span>
+              <span class="f-txt">Missing records</span><span class="tag">Cleaned</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="card k f-card span-4 hoverable rise" style="--i:6">
+          <div class="card-top">
+            <span class="lbl">Setup</span>
+            <span class="ico ghost sm"><span class="i"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="4.4"/><circle cx="8" cy="8" r="1.8"/><path d="M8 3.6V2.2M8 12.4v1.4M3.6 8H2.2M12.4 8h1.4M11.1 4.9l.9-.9M4.9 4.9l-.9-.9M4.9 11.1l-.9.9M11.1 11.1l.9.9"/></svg></span></span>
+          </div>
+          <h3 class="card-title">ffmpeg, handled</h3>
+          <p class="card-body">The first run fetches ffmpeg in the background. Tasks that need it wait their turn, and a retry button covers the rare failure.</p>
+          <div class="bar"><i style="width:100%"></i></div>
+          <div class="f-between"><span class="mono f-note">ffmpeg</span><span class="tag">Ready</span></div>
+        </article>
+
+        <article class="card l f-card span-7 hoverable rise" style="--i:7">
+          <div class="card-top"><span class="lbl">Interface</span><span class="small">Switch any time</span></div>
+          <h3 class="card-title">English or Chinese, dark or light</h3>
+          <p class="card-body">Change language and theme whenever you like, or follow Windows. The light theme is warm paper, not a washed-out dark mode.</p>
+          <div class="seg-row">
+            <div class="seg"><span class="on">Light</span><span>Dark</span><span>System</span></div>
+            <div class="seg"><span class="on">English</span><span>Chinese</span></div>
+          </div>
+        </article>
+
+        <article class="card k f-card span-5 hoverable rise" style="--i:8">
+          <div class="card-top"><span class="lbl">Tray</span><span class="tag">Runs in back</span></div>
+          <h3 class="card-title">Closing is not quitting</h3>
+          <p class="card-body">Send the window to the tray and downloads keep running. Click the tray icon to come back to the queue.</p>
+          <div class="f-item">
+            <span class="logo" style="width:16px;height:16px"><svg viewBox="0 0 64 64" aria-hidden="true" width="16" height="16"><rect x="2" y="2" width="60" height="60" rx="16" fill="var(--yellow)"/><path d="M32 14v26M20 29l12 12 12-12" fill="none" stroke="var(--ink)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 50h28" fill="none" stroke="var(--ink)" stroke-width="6" stroke-linecap="round"/></svg></span>
+            <span class="f-txt">KDownloader</span><span class="tag">In the tray</span>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="sites">
+    <div class="wrap">
+      <div class="sites-card card k rise">
+        <div>
+          <div class="eyebrow"><span class="dot"></span>Supported sites</div>
+          <h2 class="card-h2">Works where you watch.</h2>
+          <p class="sites-p">YouTube, Bilibili, Vimeo, X, Instagram and TikTok, plus thousands more through yt-dlp. When a video needs an account, KDownloader opens a login window and picks up where it left off.</p>
+        </div>
+        <div>
+          <div class="sites-grid">
+            <span>YouTube</span><span>Bilibili</span><span>Vimeo</span>
+            <span>X / Twitter</span><span>Instagram</span><span>TikTok</span>
+          </div>
+          <div class="small sites-more">Plus the rest of the sites yt-dlp supports.</div>
+        </div>
+        <div class="limit-note">
+          <span class="dot"></span>
+          <span>KDownloader does not bypass DRM, paywalls, or access controls. Download only content you have the right to keep.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="look">
+    <div class="wrap">
+      <div class="sec-head rise">
+        <div class="eyebrow"><span class="dot"></span>The look</div>
+        <h2 class="sec-h2">Color blocks, 1.5px lines, pills.</h2>
+        <p class="sec-p">Five flat card colors, one orange accent, and line work that stays visible in both themes. The same cards and controls appear on every screen.</p>
+      </div>
+
+      <div class="swatches rise">
+        <div class="card sw sw-mint">
+          <span class="lbl">Card color</span>
+          <span class="sw-name">Mint</span>
+          <span class="sw-hex">#DBE4D8</span>
+          <span class="sw-role">Default card</span>
+        </div>
+        <div class="card sw sw-yellow">
+          <span class="lbl">Card color</span>
+          <span class="sw-name">Yellow</span>
+          <span class="sw-hex">#F4E641</span>
+          <span class="sw-role">Primary action</span>
+        </div>
+        <div class="card sw sw-lilac">
+          <span class="lbl">Card color</span>
+          <span class="sw-name">Lilac</span>
+          <span class="sw-hex">#A99EC1</span>
+          <span class="sw-role">Input and sites</span>
+        </div>
+        <div class="card sw sw-red">
+          <span class="lbl">Card color</span>
+          <span class="sw-name">Red</span>
+          <span class="sw-hex">#FF5A2C</span>
+          <span class="sw-role">Queue and accent</span>
+        </div>
+        <div class="card sw sw-olive">
+          <span class="lbl">Card color</span>
+          <span class="sw-name">Olive</span>
+          <span class="sw-hex">#8A8417</span>
+          <span class="sw-role">Options and prefix</span>
+        </div>
+      </div>
+
+      <div class="look-split rise">
+        <div class="card k type-card">
+          <div class="card-top"><span class="lbl">Typography</span><span class="small">Three families</span></div>
+          <div class="type-row">
+            <span class="type-sample serif">Aa</span>
+            <span class="type-meta"><b>DM Serif Display</b><span>Headlines, card titles, the big numbers</span></span>
+          </div>
+          <div class="type-row">
+            <span class="type-sample sans">Aa</span>
+            <span class="type-meta"><b>Space Grotesk</b><span>Interface text, buttons, labels</span></span>
+          </div>
+          <div class="type-row">
+            <span class="type-sample mono-s">137</span>
+            <span class="type-meta"><b>DM Mono</b><span>Format tables and error details</span></span>
+          </div>
+        </div>
+        <div class="card k geom-card">
+          <div class="card-top"><span class="lbl">Geometry</span><span class="small">Every line 1.5px</span></div>
+          <div class="spec-row"><span class="spec-num">1.5</span><span class="spec-txt">px strokes on cards, buttons, icons and inputs</span></div>
+          <div class="spec-row"><span class="spec-num">22</span><span class="spec-txt">px card radius; 16px fields; full pills for buttons and tags</span></div>
+          <div class="spec-demo">
+            <span class="pill sm">Pill button</span>
+            <span class="ico ghost sm"><span class="i"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5.8 4v8M10.2 4v8" stroke-width="2"/></svg></span></span>
+            <span class="tag">Tag</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="themes rise">
+        <div class="theme-demo theme-dark">
+          <div class="td-top"><span class="lbl">Dark</span><span class="tag">Default</span></div>
+          <div class="td-title">Paste a URL,<br>start downloading.</div>
+          <div class="td-meta">1920×1080 · mp4 · 42.3 MB</div>
+          <div class="td-colors" aria-hidden="true"><span class="c-mint"></span><span class="c-yellow"></span><span class="c-lilac"></span><span class="c-red"></span><span class="c-olive"></span></div>
+          <div class="td-actions"><span class="td-chip">Download</span><span class="tag">Queued</span><span class="tag">Paused</span></div>
+        </div>
+        <div class="theme-demo theme-light">
+          <div class="td-top"><span class="lbl">Light</span><span class="tag">Warm paper</span></div>
+          <div class="td-title">Paste a URL,<br>start downloading.</div>
+          <div class="td-meta">1920×1080 · mp4 · 42.3 MB</div>
+          <div class="td-colors" aria-hidden="true"><span class="c-mint"></span><span class="c-yellow"></span><span class="c-lilac"></span><span class="c-red"></span><span class="c-olive"></span></div>
+          <div class="td-actions"><span class="td-chip">Download</span><span class="tag">Queued</span><span class="tag">Paused</span></div>
+        </div>
+      </div>
+      <p class="theme-note small">The interface follows your system theme. Use the Light / Dark button in the header to override it.</p>
+    </div>
+  </section>
+
+  <section class="sec" id="download">
+    <div class="wrap">
+      <div class="sec-head rise">
+        <div class="eyebrow"><span class="dot"></span>Download</div>
+        <h2 class="sec-h2">Take it with you.</h2>
+        <p class="sec-p">One portable file for Windows 10 and 11. No installer, no background service.</p>
+      </div>
+
+      <div class="dl-grid rise">
+        <div class="card y dl-main">
+          <div class="card-top"><span class="lbl">KDownloader</span><span class="small">Version 0.2.5</span></div>
+          <h3 class="dl-title">Get KDownloader</h3>
+          <p class="dl-body">Download the portable .exe, put it in any folder, and run it. The app guides you through language, theme, folder and ffmpeg on first launch.</p>
+          <div class="dl-actions">
+            <a class="cta-solid" href="https://github.com/kurtliu309/kdownloader-site/releases/latest/download/KDownloader.exe" target="_blank" rel="noopener">
+              <span class="i"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v7M4.8 6.8 8 10l3.2-3.2M3.5 13h9"/></svg></span>
+              Download for Windows
+            </a>
+            <a class="pill" href="https://github.com/kurtliu309/kdownloader-site/releases" target="_blank" rel="noopener">All releases</a>
+          </div>
+          <div class="dl-fine">Windows 10 / 11 · Portable single .exe · English and Chinese interface</div>
+        </div>
+
+        <div class="card k dl-side">
+          <div class="card-top"><span class="lbl">Before you run it</span><span class="small">v0.2.5</span></div>
+          <h3 class="mid">Unsigned build</h3>
+          <p class="body">This release is not code-signed, so Windows SmartScreen may warn on first launch. Choose <b>More info</b>, then <b>Run anyway</b>.</p>
+          <div class="smart-row">
+            <span class="tag">More info</span>
+            <span class="smart-arrow">→</span>
+            <span class="tag">Run anyway</span>
+          </div>
+          <div class="dl-run">
+            <span class="lbl">First launch</span>
+            <div class="row"><span class="dl-num">01</span><span class="t">Pick language and theme</span></div>
+            <div class="row"><span class="dl-num">02</span><span class="t">Choose a download folder</span></div>
+            <div class="row"><span class="dl-num">03</span><span class="t">ffmpeg downloads in the background</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="specs rise">
+        <div class="spec-cell"><span class="lbl">Version</span><span class="spec-val">0.2.5</span></div>
+        <div class="spec-cell"><span class="lbl">Platform</span><span class="spec-val">Windows 10 / 11</span></div>
+        <div class="spec-cell"><span class="lbl">Package</span><span class="spec-val">Portable single .exe</span></div>
+        <div class="spec-cell"><span class="lbl">Install</span><span class="spec-val">None required</span></div>
+        <div class="spec-cell"><span class="lbl">First run</span><span class="spec-val">Short guided setup</span></div>
+        <div class="spec-cell"><span class="lbl">Tray</span><span class="spec-val">Downloads keep running</span></div>
+        <div class="spec-cell"><span class="lbl">Languages</span><span class="spec-val">English and Chinese</span></div>
+        <div class="spec-cell"><span class="lbl">Themes</span><span class="spec-val">Dark, light, system</span></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-in">
+    <div class="footer-brand">
+      <svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><rect x="2" y="2" width="60" height="60" rx="16" fill="var(--yellow)"/><path d="M32 14v26M20 29l12 12 12-12" fill="none" stroke="var(--ink)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 50h28" fill="none" stroke="var(--ink)" stroke-width="6" stroke-linecap="round"/></svg>
+      KDownloader
+    </div>
+    <nav class="footer-links" aria-label="Links">
+      <a href="#features">Features</a>
+      <a href="#sites">Supported sites</a>
+      <a href="#look">Look</a>
+      <a href="https://github.com/kurtliu309/kdownloader-site" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/kurtliu309/kdownloader-site/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="journey/">Dev journal</a>
+    </nav>
+    <p class="footer-note">KDownloader does not bypass DRM, paywalls, or access controls. Download only content you have the right to keep.</p>
+    <p class="footer-meta">v0.2.5 · Windows 10 / 11 · Portable .exe</p>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    var root = document.documentElement;
+    var KEY = 'kdl-page-theme';
+    var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: light)') : null;
+    var btn = document.getElementById('theme-toggle');
+    var label = btn ? btn.querySelector('.theme-label') : null;
+
+    /* Always open in dark (the recommended look); the toggle is per visit only. */
+    try { localStorage.removeItem(KEY); } catch (e) { /* storage can be blocked */ }
+
+    function current() {
+      var attr = root.getAttribute('data-theme');
+      if (attr === 'dark' || attr === 'light') return attr;
+      return 'dark';
+    }
+
+    function toHex(rgb) {
+      var parts = rgb.match(/\d+/g);
+      if (!parts || parts.length < 3) return '';
+      var out = '#';
+      for (var i = 0; i < 3; i++) {
+        var h = Number(parts[i]).toString(16).toUpperCase();
+        out += h.length === 1 ? '0' + h : h;
+      }
+      return out;
+    }
+
+    function paint() {
+      var next = current() === 'dark' ? 'light' : 'dark';
+      if (label) label.textContent = next.charAt(0).toUpperCase() + next.slice(1);
+      if (btn) btn.setAttribute('aria-label', 'Switch to ' + next + ' theme');
+      var swatches = document.querySelectorAll('.sw');
+      for (var i = 0; i < swatches.length; i++) {
+        var hex = swatches[i].querySelector('.sw-hex');
+        if (!hex) continue;
+        var color = toHex(window.getComputedStyle(swatches[i]).backgroundColor);
+        if (color) hex.textContent = color;
+      }
+    }
+
+    if (btn) {
+      btn.addEventListener('click', function () {
+        var next = current() === 'dark' ? 'light' : 'dark';
+        root.setAttribute('data-theme', next);
+        paint();
+      });
+    }
+
+    function onSystemChange() {
+      if (!root.getAttribute('data-theme')) paint();
+    }
+    if (mq) {
+      if (mq.addEventListener) mq.addEventListener('change', onSystemChange);
+      else if (mq.addListener) mq.addListener(onSystemChange);
+    }
+
+    paint();
+  })();
+</script>
+</body>
+</html>

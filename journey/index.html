@@ -1,0 +1,973 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KDownloader — seven days to v0.2.5</title>
+<meta name="description" content="A field report on building KDownloader: a frontend rebuilt from scratch, a design system that cut 27 font sets to 5, a rollback that cost 2,367 lines of tests, and a portable v0.2.5 exe.">
+<meta property="og:title" content="KDownloader — seven days to v0.2.5">
+<meta property="og:description" content="A frontend rebuilt from scratch, a design system, one very expensive rollback, and a portable exe. A field report by Kurt.">
+<meta property="og:type" content="article">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&amp;family=DM+Serif+Display&amp;family=Noto+Serif+SC:wght@500;700&amp;family=Space+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+/* ---- KDownloader tokens: dark by default, light on request ---- */
+:root{
+  color-scheme:dark;
+  --bg:#0b0b0b; --surface:#161616; --paper:#f2f1ec; --dim:#8c8a84; --ink:#0b0b0b; --on-ink:var(--paper);
+  --line:#2e2e2e; --line-strong:#4a4a4a;
+  --yellow:#f4e641; --lilac:#a99ec1; --olive:#8a8417; --mint:#dbe4d8; --red:#ff5a2c; --err:#ff5a2c;
+  --card-shadow:none; --card-shadow-hover:none;
+  --focus-shadow:0 0 0 12px #0b0b0b; --float-shadow:0 8px 24px rgba(0,0,0,.45);
+  --input-glow:0 0 0 3px rgba(255,90,44,.28);
+  --space-1:4px; --space-1h:6px; --space-2:8px; --space-2h:10px; --space-3:12px; --space-3h:14px; --space-4:16px; --space-5:20px;
+  --r:22px; --r-field:16px; --r-thumb:14px; --r-sm:12px; --r-row:8px; --r-pill:999px; --r-round:50%;
+  --stroke-hair:1px; --stroke:1.5px; --stroke-close:1.75px;
+  --dur-press:60ms; --dur-hover:160ms; --dur-stagger:30ms; --dur-enter:420ms; --dur-focus:320ms;
+  --ease-out:cubic-bezier(.2,.8,.2,1); --ease-spring:cubic-bezier(.34,1.56,.64,1);
+  --font-headline:"DM Serif Display","Noto Serif SC",Georgia,SimSun,serif;
+  --font-display:"Space Grotesk","HarmonyOS Sans SC","Microsoft YaHei","Segoe UI",sans-serif;
+  --font-mono:"DM Mono","HarmonyOS Sans SC",Consolas,monospace;
+}
+:root[data-theme="light"]{
+  color-scheme:light;
+  --bg:#f2e3cf; --surface:#fbebd6; --paper:#121212; --dim:#7a6e5f; --ink:#121212; --on-ink:#f6eee2;
+  --line:#dccbb3; --line-strong:#1d1a16;
+  --yellow:#f6d43c; --lilac:#b9b0d6; --olive:#a39a35; --mint:#fbebd6; --red:#ef5f1a; --err:#c4400c;
+  --card-shadow:0 22px 44px -18px rgba(92,58,24,.28), 0 3px 10px -4px rgba(92,58,24,.14);
+  --card-shadow-hover:0 14px 28px -14px rgba(92,58,24,.45);
+  --focus-shadow:0 30px 60px -20px rgba(92,58,24,.35);
+  --float-shadow:0 8px 24px rgba(92,58,24,.25);
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:var(--bg);color:var(--paper);
+  font-family:var(--font-display);font-size:17px;line-height:1.7;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+img{max-width:100%}
+a{color:var(--red);overflow-wrap:anywhere}
+a:hover{color:var(--yellow)}
+code{font-family:var(--font-mono);font-size:.82em;background:var(--bg);border:var(--stroke-hair) solid var(--line);border-radius:6px;padding:1px 5px;overflow-wrap:anywhere}
+button{font-family:inherit}
+:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
+.wrap{max-width:920px;margin:0 auto;padding:0 16px 80px}
+
+/* ---- bilingual: one rule set, every node tagged lang ---- */
+html[lang="en"] [lang="zh"]{display:none !important}
+html[lang="zh"] [lang="en"]{display:none !important}
+
+/* ---- fixed controls ---- */
+.ctl{position:fixed;top:12px;right:12px;display:flex;gap:8px;align-items:center;z-index:60}
+.langswitch{display:flex;background:var(--surface);border:var(--stroke) solid var(--line-strong);border-radius:var(--r-pill);overflow:hidden}
+.langswitch button{border:0;background:transparent;color:var(--dim);font:600 12px/1 var(--font-display);padding:8px 12px;cursor:pointer;transition:background var(--dur-hover) var(--ease-out),color var(--dur-hover) var(--ease-out)}
+.langswitch button[aria-pressed="true"]{background:var(--yellow);color:var(--ink)}
+#themebtn{background:var(--surface);border:var(--stroke) solid var(--line-strong);border-radius:var(--r-pill);color:var(--paper);font:500 12px/1 var(--font-display);padding:8px 12px;cursor:pointer;min-width:76px;transition:border-color var(--dur-hover) var(--ease-out),transform var(--dur-hover) var(--ease-out)}
+#themebtn:hover{border-color:var(--yellow)}
+.backlink{display:inline-flex;align-items:center;background:var(--surface);border:var(--stroke) solid var(--line-strong);border-radius:var(--r-pill);color:var(--paper);font:500 12px/1 var(--font-display);padding:8px 12px;text-decoration:none;transition:border-color var(--dur-hover) var(--ease-out)}
+.backlink:hover{color:var(--paper);border-color:var(--yellow)}
+
+/* ---- hero ---- */
+.hero{padding:78px 0 30px;border-bottom:var(--stroke) solid var(--line)}
+.kicker{font:600 11px/1 var(--font-display);letter-spacing:.16em;text-transform:uppercase;color:var(--red)}
+h1{font:400 clamp(44px,9vw,76px)/1 var(--font-headline);letter-spacing:-.01em;margin:14px 0 14px;font-synthesis:none;color:var(--paper)}
+.sub{color:var(--dim);font-size:19px;line-height:1.55;margin:0;max-width:46em}
+.meta{color:var(--dim);font-size:13px;margin-top:16px;font-variant-numeric:tabular-nums}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:28px 0 6px}
+.stat{border:var(--stroke) solid var(--line);border-radius:var(--r);padding:14px 16px;color:var(--ink);min-height:118px;display:flex;flex-direction:column;justify-content:space-between}
+.stat .num{font:600 32px/1 var(--font-display);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.stat .lbl{font-size:12px;line-height:1.35;margin-top:10px}
+.stat.mint{background:var(--mint)}
+.stat.yellow{background:var(--yellow)}
+.stat.lilac{background:var(--lilac)}
+.stat.red{background:var(--red)}
+nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin:22px 0 0}
+nav.toc a{font-size:12.5px;color:var(--dim);text-decoration:none;border:var(--stroke) solid var(--line);padding:5px 12px;border-radius:var(--r-pill);background:var(--surface);transition:color var(--dur-hover) var(--ease-out),border-color var(--dur-hover) var(--ease-out)}
+nav.toc a:hover{color:var(--paper);border-color:var(--yellow)}
+.abstract{background:var(--surface);border:var(--stroke) solid var(--line);border-left:6px solid var(--red);border-radius:var(--r);padding:18px 22px;margin:26px 0;box-shadow:var(--card-shadow)}
+.abstract p{margin:8px 0}
+.abstract b{color:var(--paper)}
+
+/* ---- type ---- */
+h2{font:400 clamp(28px,4.8vw,40px)/1.15 var(--font-headline);letter-spacing:-.01em;margin:68px 0 12px;font-synthesis:none;scroll-margin-top:70px}
+h2 .n{display:block;font:600 11px/1 var(--font-display);letter-spacing:.16em;color:var(--red);margin-bottom:8px}
+h3{font:500 21px/1.35 var(--font-headline);margin:30px 0 8px;font-synthesis:none}
+h4{font:600 16px/1.4 var(--font-display);margin:20px 0 6px}
+p{margin:10px 0;overflow-wrap:break-word}
+.lead{font-size:19px;color:var(--dim)}
+.aside{border-left:3px solid var(--line-strong);padding:4px 0 4px 16px;color:var(--dim);font-size:15.5px;margin:22px 0}
+.small{font-size:13px;color:var(--dim)}
+
+/* ---- figures ---- */
+figure{margin:22px 0;background:var(--surface);border:var(--stroke) solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--card-shadow)}
+figure img{display:block;width:100%;height:auto;border-radius:var(--r-thumb);border:var(--stroke-hair) solid var(--line);background:var(--bg)}
+figcaption{font-size:13px;line-height:1.55;color:var(--dim);margin-top:12px}
+figcaption b{color:var(--paper)}
+.shots{display:grid;gap:14px}
+.shots.two{grid-template-columns:1fr 1fr}
+.shots.four{grid-template-columns:1fr 1fr}
+.shot{min-width:0}
+.shot button{display:block;width:100%;padding:0;border:0;background:none;cursor:zoom-in;border-radius:var(--r-thumb);transition:transform var(--dur-hover) var(--ease-out)}
+.shot button:hover{transform:translateY(-2px)}
+.shot .cap{font-size:12px;color:var(--dim);margin-top:7px;line-height:1.4}
+.shot.tall{max-width:640px;margin:0 auto}
+.shots .shot img{width:100%;height:auto}
+
+/* ---- interactive timeline ---- */
+.tl{display:grid;grid-template-columns:280px minmax(0,1fr);gap:16px;margin:22px 0}
+.tl-list{display:flex;flex-direction:column;gap:6px}
+.tl-item{display:flex;gap:10px;align-items:flex-start;text-align:left;width:100%;background:transparent;border:var(--stroke) solid var(--line);border-radius:var(--r-field);padding:10px 12px;color:var(--paper);cursor:pointer;transition:border-color var(--dur-hover) var(--ease-out),background var(--dur-hover) var(--ease-out)}
+.tl-item:hover{border-color:var(--line-strong)}
+.tl-item .tl-no{font:600 11px/1.5 var(--font-display);color:var(--red);letter-spacing:.06em;padding-top:2px;font-variant-numeric:tabular-nums}
+.tl-item .tl-t{display:block;font-size:14px;font-weight:500;line-height:1.35}
+.tl-item .tl-d{display:block;font-size:11px;color:var(--dim);margin-top:2px;font-variant-numeric:tabular-nums}
+.tl-item[aria-current="true"]{background:var(--yellow);border-color:var(--yellow);color:var(--ink)}
+.tl-item[aria-current="true"] .tl-no,.tl-item[aria-current="true"] .tl-d{color:var(--ink)}
+.tl-detail{background:var(--surface);border:var(--stroke) solid var(--line);border-radius:var(--r);padding:18px 20px;box-shadow:var(--card-shadow);min-height:340px}
+.tl-detail h3{margin-top:4px}
+.tl-kicker{font:600 11px/1 var(--font-display);letter-spacing:.14em;color:var(--red);text-transform:uppercase}
+.tl-date{font-size:12px;color:var(--dim);margin:2px 0 10px;font-variant-numeric:tabular-nums}
+.tl-detail p{font-size:15px}
+.tl-detail ul{margin:8px 0;padding-left:20px;font-size:14px;color:var(--dim)}
+.tl-detail li{margin:4px 0}
+.tl-shots{grid-template-columns:1fr 1fr;margin-top:14px}
+.tl-shots .shot .cap{font-size:11px}
+
+/* ---- before / after ---- */
+.compare{position:relative;aspect-ratio:1280/760;border-radius:var(--r-thumb);overflow:hidden;border:var(--stroke-hair) solid var(--line);background:var(--bg);--p:50%}
+.compare img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top center;border:0;border-radius:0}
+.compare .before{clip-path:inset(0 calc(100% - var(--p)) 0 0)}
+.compare .divider{position:absolute;top:0;bottom:0;left:var(--p);width:2px;background:var(--red);transform:translateX(-1px);pointer-events:none;z-index:2}
+.compare .handle{position:absolute;top:50%;left:var(--p);width:36px;height:36px;border-radius:var(--r-round);background:var(--yellow);border:var(--stroke) solid var(--ink);color:var(--ink);display:grid;place-items:center;transform:translate(-50%,-50%);pointer-events:none;z-index:3}
+.compare input[type="range"]{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:ew-resize;z-index:4}
+.compare:focus-within{outline:2px solid var(--yellow);outline-offset:3px}
+.cmp-tag{position:absolute;top:10px;z-index:3;background:var(--bg);border:var(--stroke-hair) solid var(--line-strong);border-radius:var(--r-pill);padding:3px 10px;font-size:11px;color:var(--paper);pointer-events:none;font-variant-numeric:tabular-nums}
+.cmp-tag.l{left:10px}.cmp-tag.r{right:10px}
+
+/* ---- charts ---- */
+.chart{width:100%}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+svg text{font-family:var(--font-display);font-size:11px;fill:var(--dim);font-variant-numeric:tabular-nums}
+svg text.head{fill:var(--paper);font-size:13px;font-weight:600}
+svg text.val{fill:var(--paper);font-size:12px;font-weight:600}
+svg text.axl{font-size:10.5px}
+svg text.ink{fill:var(--ink);font-weight:600;font-size:12px}
+svg .grid{stroke:var(--line);stroke-width:1}
+svg .axis{stroke:var(--line-strong);stroke-width:1.5}
+svg .bar{fill:var(--lilac)}
+svg .bar-final{fill:var(--yellow)}
+svg .bar-old{fill:var(--dim)}
+svg .bar-new{fill:var(--yellow)}
+svg .seg{stroke:var(--surface);stroke-width:2}
+svg .seg-y{fill:var(--yellow)}
+svg .seg-l{fill:var(--lilac)}
+svg .seg-r{fill:var(--red)}
+svg .seg-o{fill:var(--olive)}
+svg .seg-d{fill:var(--dim)}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:12px;color:var(--dim);margin:12px 0 0}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.tip{position:fixed;pointer-events:none;background:var(--paper);color:var(--bg);font-size:12.5px;line-height:1.5;padding:7px 10px;border-radius:8px;max-width:280px;opacity:0;transition:opacity .12s;z-index:80;box-shadow:var(--float-shadow)}
+.tip b{color:inherit}
+
+/* ---- steps, lessons, lists ---- */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0}
+.step{background:var(--bg);border:var(--stroke-hair) solid var(--line);border-radius:var(--r-sm);padding:12px 14px}
+.step .no{display:block;font:600 11px/1 var(--font-display);letter-spacing:.12em;color:var(--red);margin-bottom:6px}
+.step p{font-size:13px;line-height:1.5;margin:0;color:var(--dim)}
+.lessons{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:22px 0}
+.lesson{background:var(--surface);border:var(--stroke) solid var(--line);border-top:4px solid var(--lilac);border-radius:var(--r);padding:16px 18px;box-shadow:var(--card-shadow)}
+.lesson.l2{border-top-color:var(--yellow)}
+.lesson.l3{border-top-color:var(--red)}
+.lesson.l4{border-top-color:var(--olive)}
+.lesson.l5{border-top-color:var(--lilac)}
+.lesson.l6{border-top-color:var(--yellow)}
+.lesson.l7{border-top-color:var(--red);grid-column:1/-1}
+.lesson .no{font:600 11px/1 var(--font-display);letter-spacing:.14em;color:var(--dim)}
+.lesson h3{font:500 20px/1.3 var(--font-headline);margin:7px 0 8px}
+.lesson p{font-size:14px;line-height:1.6;margin:0;color:var(--dim)}
+ul.plain{list-style:none;padding:0;margin:12px 0}
+ul.plain li{border-left:2px solid var(--line);padding:2px 0 2px 14px;margin:10px 0;color:var(--dim);font-size:15.5px}
+ul.plain li b{color:var(--paper)}
+.quote{font:italic 22px/1.5 var(--font-headline);border-left:3px solid var(--red);padding:6px 0 6px 18px;margin:26px 0;color:var(--paper)}
+footer{margin-top:64px;padding-top:18px;border-top:var(--stroke) solid var(--line);color:var(--dim);font-size:12.5px;line-height:1.6}
+footer p{margin:4px 0}
+
+/* ---- lightbox ---- */
+.lb{position:fixed;inset:0;background:rgba(11,11,11,.9);z-index:100;display:grid;place-items:center;padding:20px}
+[data-theme="light"] .lb,.lb{background:rgba(11,11,11,.9)}
+.lb[hidden]{display:none}
+.lb figure{margin:0;background:var(--surface);border:var(--stroke) solid var(--line-strong);border-radius:var(--r);padding:12px;max-width:min(1100px,96vw);max-height:94vh;display:flex;flex-direction:column;box-shadow:var(--focus-shadow)}
+.lb img{max-width:100%;max-height:calc(94vh - 130px);width:auto;height:auto;object-fit:contain;border-radius:var(--r-thumb);border:var(--stroke-hair) solid var(--line);background:var(--bg)}
+.lb figcaption{margin:10px 2px 2px;color:var(--paper);font-size:13px}
+.lb-x{position:absolute;top:14px;right:14px;background:var(--surface);border:var(--stroke) solid var(--line-strong);border-radius:var(--r-pill);color:var(--paper);padding:7px 14px;font:600 12px/1 var(--font-display);cursor:pointer;z-index:2}
+.lb-x:hover{border-color:var(--yellow)}
+body.lb-open{overflow:hidden}
+
+@media (max-width:1299px){
+  .ctl{position:absolute}
+}
+@media (max-width:760px){
+  .stats{grid-template-columns:1fr 1fr}
+  .tl{grid-template-columns:1fr}
+  .tl-list{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .tl-item{padding:8px 10px}
+  .tl-detail{min-height:0}
+  .steps{grid-template-columns:1fr 1fr}
+  .lessons{grid-template-columns:1fr}
+  .lesson.l7{grid-column:auto}
+}
+@media (max-width:640px){
+  .shots.two,.shots.four,.tl-shots{grid-template-columns:1fr}
+  svg text{font-size:20px}
+  svg text.head{font-size:21px}
+  svg text.val{font-size:20px}
+  svg text.axl{font-size:19px}
+  svg text.ink{font-size:20px}
+  .sub{font-size:17px}
+  .stat{min-height:104px;padding:12px 14px}
+  .stat .num{font-size:28px}
+  figure{padding:12px}
+  .tl-detail{padding:16px}
+  .ctl{top:8px;right:8px}
+  .hero{padding-top:66px}
+}
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation:none !important;transition:none !important}
+}
+</style>
+</head>
+<body>
+<div class="tip" id="tip" aria-hidden="true"></div>
+
+<div class="ctl">
+  <a class="backlink" href="../">← KDownloader</a>
+  <div class="langswitch" role="group" aria-label="Language / 语言">
+    <button type="button" data-lang="en" aria-pressed="true">EN</button>
+    <button type="button" data-lang="zh" aria-pressed="false">中文</button>
+  </div>
+  <button type="button" id="themebtn" aria-label="Toggle light or dark theme / 切换深浅主题"><span lang="en" id="thEn">Theme</span><span lang="zh" id="thZh">主题</span></button>
+</div>
+
+<div class="wrap">
+
+<header class="hero">
+  <div class="kicker"><span lang="en">A field report · November 2026</span><span lang="zh">现场报告 · 2026 年 11 月</span></div>
+  <h1>KDownloader</h1>
+  <p class="sub"><span lang="en">Seven days, one desktop video downloader, and a frontend rebuilt from scratch while the backend kept running. What worked, what broke, and what is still missing at v0.2.5.</span><span lang="zh">七天，一个桌面视频下载器，一套在后端照常运行的情况下推倒重做的前端。记录 v0.2.5 之前做对了什么、弄坏了什么、还缺什么。</span></p>
+  <div class="meta"><span lang="en">By Kurt · Data as of 2026-11-13 · 21 screenshots</span><span lang="zh">Kurt · 数据截至 2026-11-13 · 21 张截图</span></div>
+
+  <div class="stats">
+    <div class="stat mint"><div class="num">256</div><div class="lbl"><span lang="en">Python tests on the final run, plus 8 in Node</span><span lang="zh">最终实跑的 Python 测试，另有 8 个 Node 测试</span></div></div>
+    <div class="stat yellow"><div class="num">27 → 5</div><div class="lbl"><span lang="en">font sets after the cut, without dropping glyphs</span><span lang="zh">字体从 27 套裁到 5 套，没有裁字</span></div></div>
+    <div class="stat lilac"><div class="num">53 → 20</div><div class="lbl"><span lang="en">MB of app size, before and after</span><span lang="zh">MB，精简前后的安装体积</span></div></div>
+    <div class="stat red"><div class="num">246</div><div class="lbl"><span lang="en">requirements audited on 2026-11-09</span><span lang="zh">2026-11-09 逐条核对的需求</span></div></div>
+  </div>
+
+  <nav class="toc" aria-label="Contents / 目录">
+    <a href="#timeline"><span lang="en">Timeline</span><span lang="zh">时间线</span></a>
+    <a href="#start"><span lang="en">01 Start</span><span lang="zh">01 起点</span></a>
+    <a href="#mockups"><span lang="en">02 Mockups</span><span lang="zh">02 样式稿</span></a>
+    <a href="#system"><span lang="en">03 Design system</span><span lang="zh">03 设计系统</span></a>
+    <a href="#contract"><span lang="en">04 Contract</span><span lang="zh">04 契约</span></a>
+    <a href="#rollback"><span lang="en">05 Rollback</span><span lang="zh">05 回退</span></a>
+    <a href="#batches"><span lang="en">06 Batches</span><span lang="zh">06 分批</span></a>
+    <a href="#exe"><span lang="en">07 One exe</span><span lang="zh">07 一个 exe</span></a>
+    <a href="#lessons"><span lang="en">08 Lessons</span><span lang="zh">08 经验</span></a>
+    <a href="#missing"><span lang="en">09 Missing pieces</span><span lang="zh">09 还缺什么</span></a>
+  </nav>
+</header>
+
+<section class="abstract" id="abstract">
+  <p><span lang="en"><b>Abstract.</b> KDownloader is a Windows desktop video downloader: Python and yt-dlp behind a pywebview window, plain HTML/CSS/JS in front, shipped as one portable exe. The backend was stable by 2026-11-07. The interface was not. This report follows the interface from a nearly empty four-tab page to the five-color card system at v0.2.5: the layout studies, the icon sheets, the font sets cut from 27 to 5, the six-step onboarding that took five rounds, the night 0.2.0 shipped a program that could not close, the rollback that cost 2,367 lines of tests, and the batches that rebuilt it one contract at a time.</span><span lang="zh"><b>摘要。</b>KDownloader 是一个 Windows 桌面视频下载器：pywebview 窗口后面是 Python 和 yt-dlp，界面是原生 HTML/CSS/JS，最后打成单个便携 exe。后端在 2026-11-07 已经稳定，界面还没有。这篇记录界面怎么从一个几乎空白的四页签页面，走到 v0.2.5 的五色卡片系统：布局样式稿、图标挑选稿、从 27 套裁到 5 套的字体、改了五轮的六步引导、0.2.0 交付了一个关不掉的程序的那一晚、丢掉 2367 行测试的回退，以及靠一份份契约把信任重新建起来的分批。</span></p>
+  <p><span lang="en"><b>What I take from it:</b> visual work needs a human eye, engineering work needs a written contract, and a green test suite only proves that the mocks agree with themselves.</span><span lang="zh"><b>我的结论：</b>视觉要人眼看，工程要写死的契约，测试全绿只能证明假接口自洽。</span></p>
+</section>
+
+<section id="timeline">
+  <h2><span class="n"><span lang="en">The week at a glance</span><span lang="zh">一周速览</span></span><span lang="en">Eight stages, 21 screenshots</span><span lang="zh">八个阶段，21 张截图</span></h2>
+  <p><span lang="en">Pick a stage to see what changed. Every screenshot opens full size; press Esc to close it.</span><span lang="zh">点一个阶段看当时发生了什么。每张截图都能放大；按 Esc 关闭。</span></p>
+  <div class="tl">
+    <div class="tl-list" id="tlList" role="list" aria-label="Stages / 阶段"></div>
+    <div class="tl-detail" id="tlDetail" aria-live="polite"></div>
+  </div>
+</section>
+
+<section id="start">
+  <h2><span class="n">01</span><span lang="en">A rough start</span><span lang="zh">粗糙的起点</span></h2>
+  <p><span lang="en">The download engine came first. From v0.1.0 through v0.1.12 — all dated 2026-11-07 or earlier — the backend gained queue management, batch and playlist downloads, per-task retry, a four-tab shell, a developer log that rotates every 500 lines, cookie-based login in an embedded window, network retry and a quality fallback. v0.1.12 was recorded as stable with 119 tests passing.</span><span lang="zh">下载引擎先做。从 v0.1.0 到 v0.1.12（都记在 2026-11-07 或更早），后端陆续有了队列管理、批量与合集下载、单任务重试、四页签外壳、每 500 行轮换的开发者日志、内置窗口的 cookies 登录、网络重试和清晰度兜底。v0.1.12 被记为稳定，119 个测试全过。</span></p>
+  <p><span lang="en">The old web/ frontend was a shell: four tabs, a blue primary button, and a page that was mostly empty. It worked. It looked like a placeholder.</span><span lang="zh">旧 web/ 前端只是个壳：四个页签、一个蓝色主按钮，页面大部分是空的。它能用，但看起来像占位符。</span></p>
+  <p><span lang="en">So the visual work started on a separate track. web_v2 would be built beside the old interface without touching the backend, and the backend kept its 119 green tests while the front end was torn down.</span><span lang="zh">于是视觉重做另起一条线：web_v2 和旧界面并存，不动后端；前端推倒重来的时候，后端那 119 个测试仍然是绿的。</span></p>
+  <p class="aside"><span lang="en">Scope was fixed early: no DRM bypass, no paywall or anti-bot work. Kubb.tv was logged as an access-control boundary and left alone.</span><span lang="zh">范围一开始就定死：不绕过 DRM、不碰付费墙和反爬。Kubb.tv 被记为访问控制边界，只记录，不实现。</span></p>
+
+  <figure>
+    <div class="compare" id="cmp">
+      <img class="after" src="img/18-home-en.png" alt="KDownloader v0.2.5 home screen / KDownloader v0.2.5 首页" loading="lazy" decoding="async" width="1280" height="760">
+      <img class="before" src="img/01-old-web-home.png" alt="The old four-tab frontend, almost empty / 旧四页签前端，页面几乎是空的" loading="lazy" decoding="async" width="1280" height="760">
+      <span class="cmp-tag l">web/ · v0.1.x</span>
+      <span class="cmp-tag r">v0.2.5</span>
+      <span class="divider" aria-hidden="true"></span>
+      <span class="handle" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 3 3 8l3 5M10 3l3 5-3 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <input type="range" id="cmpRange" min="0" max="100" value="50" step="1" aria-label="Before and after comparison / 前后对比">
+    </div>
+    <figcaption><span lang="en"><b>Figure 1.</b> The before and after. Left of the handle is web/ at v0.1.x; right is the v0.2.5 home screen. Drag the handle or use the arrow keys.</span><span lang="zh"><b>图 1.</b> 前后对比。滑块左边是 v0.1.x 的 web/，右边是 v0.2.5 首页。拖动滑块，或用方向键。</span></figcaption>
+  </figure>
+</section>
+
+<section id="mockups">
+  <h2><span class="n">02</span><span lang="en">Mockups first</span><span lang="zh">先出样式稿</span></h2>
+  <p><span lang="en">On 2026-11-07 the interface work started with pictures, not code. Layout A put the paste box, video card, playlist, queue summary and calendar on one dashboard. Layout B kept the tabs, arranged parse results in a card grid, and pinned the queue on the right. Both used the five card colors for the first time.</span><span lang="zh">2026-11-07，界面从图开始，不从代码开始。方案 A 把粘贴框、视频卡、合集、队列摘要和日历摊在一屏；方案 B 保留顶部页签，解析结果按卡片格排，右侧固定队列。五色卡片在这两张图里第一次出现。</span></p>
+
+  <figure>
+    <div class="shots two">
+      <div class="shot">
+        <button type="button" data-img="02" aria-label="Open screenshot 02 / 查看截图 02"><img src="img/02-layout-a-dashboard.png" alt="Layout A: paste, video, playlist, queue and calendar on one dashboard / 方案 A：粘贴、视频、合集、队列和日历摊在一屏" loading="lazy" decoding="async" width="1280" height="760"></button>
+        <div class="cap"><span lang="en">Layout A — one dashboard</span><span lang="zh">方案 A：一屏仪表盘</span></div>
+      </div>
+      <div class="shot">
+        <button type="button" data-img="03" aria-label="Open screenshot 03 / 查看截图 03"><img src="img/03-layout-b-tabs.png" alt="Layout B: tabs on top, parse results in a card grid, queue pinned right / 方案 B：顶部页签，解析结果按卡片格排，右侧固定队列" loading="lazy" decoding="async" width="1280" height="760"></button>
+        <div class="cap"><span lang="en">Layout B — tabs and a card grid</span><span lang="zh">方案 B：页签加卡片格</span></div>
+      </div>
+    </div>
+    <figcaption><span lang="en"><b>Figure 2.</b> Two layout directions from 2026-11-07. A is denser; B keeps the old tab habit.</span><span lang="zh"><b>图 2.</b> 2026-11-07 的两个布局方向。A 更密；B 保留了旧的页签习惯。</span></figcaption>
+  </figure>
+
+  <p><span lang="en">The settings page went through four layouts. A gave the download folder a full row. B stacked concurrency and language on the right. C flattened the folder card and put four small cards in one row. D moved the filename prefix to the top right, widened the folder card, and aligned four cards below. Kurt picked D.</span><span lang="zh">设置页走了四套布局。A 让下载文件夹占满一整行；B 把同时下载和语言叠在右侧；C 压扁文件夹卡，四个小卡并排；D 把文件名前缀移到右上，文件夹更宽，下半部分四卡对齐。Kurt 选了 D。</span></p>
+
+  <figure>
+    <div class="shots four">
+      <div class="shot">
+        <button type="button" data-img="04" aria-label="Open screenshot 04 / 查看截图 04"><img src="img/04-settings-layout-a.png" alt="Settings layout A: download folder spans a full row / 设置方案 A：下载文件夹占满一整行" loading="lazy" decoding="async" width="1280" height="760"></button>
+        <div class="cap"><span lang="en">A — folder full width</span><span lang="zh">A：文件夹占满一行</span></div>
+      </div>
+      <div class="shot">
+        <button type="button" data-img="05" aria-label="Open screenshot 05 / 查看截图 05"><img src="img/05-settings-layout-b.png" alt="Settings layout B: concurrency and language stacked at right / 设置方案 B：右侧叠放同时下载和语言" loading="lazy" decoding="async" width="1280" height="760"></button>
+        <div class="cap"><span lang="en">B — two cards at right</span><span lang="zh">B：右侧两张卡</span></div>
+      </div>
+      <div class="shot">
+        <button type="button" data-img="06" aria-label="Open screenshot 06 / 查看截图 06"><img src="img/06-settings-layout-c.png" alt="Settings layout C: flatter folder card, four compact cards in a row / 设置方案 C：文件夹卡压扁，四个小卡并排" loading="lazy" decoding="async" width="1280" height="760"></button>
+        <div class="cap"><span lang="en">C — four compact cards</span><span lang="zh">C：四个小卡并排</span></div>
+      </div>
+      <div class="shot">
+        <button type="button" data-img="07" aria-label="Open screenshot 07 / 查看截图 07"><img src="img/07-settings-layout-d.png" alt="Settings layout D, the chosen one: prefix top-right, four aligned cards below / 方案 D，最终采用：前缀在右上，下方四卡对齐" loading="lazy" decoding="async" width="1280" height="760"></button>
+        <div class="cap"><span lang="en">D — chosen</span><span lang="zh">D：最终采用</span></div>
+      </div>
+    </div>
+    <figcaption><span lang="en"><b>Figure 3.</b> Settings layouts A–D. D moved the filename prefix into its own card at the top right and aligned the four lower cards.</span><span lang="zh"><b>图 3.</b> 设置页方案 A–D。D 把文件名前缀单独放到右上，下方四张卡对齐。</span></figcaption>
+  </figure>
+
+  <p><span lang="en">The icon sheet put old, new A, new B and hover side by side for every action, all at 1.5px. Folder A, delete A, broom B and a circled exclamation mark for failure made the cut. A light-theme copy checked that the lines stayed visible on parchment.</span><span lang="zh">图标挑选稿把每个动作的旧版、新 A、新 B 和悬停并排放在一起，线宽统一 1.5。文件夹 A、删除 A、扫帚 B、失败的圆圈叹号入选。同一张稿还有浅色版本，用来确认线条在米色底上仍然看得清。</span></p>
+
+  <figure>
+    <div class="shots two">
+      <div class="shot">
+        <button type="button" data-img="08" aria-label="Open screenshot 08 / 查看截图 08"><img src="img/08-icons-picker-dark.png" alt="Icon selection sheet in dark: old, new A, new B, hover / 深色图标挑选稿：旧、新 A、新 B、悬停" loading="lazy" decoding="async" width="1280" height="760"></button>
+        <div class="cap"><span lang="en">Dark sheet</span><span lang="zh">深色稿</span></div>
+      </div>
+      <div class="shot">
+        <button type="button" data-img="09" aria-label="Open screenshot 09 / 查看截图 09"><img src="img/09-icons-picker-light.png" alt="The same icon sheet in the light theme / 同一张图标挑选稿的浅色版本" loading="lazy" decoding="async" width="1280" height="760"></button>
+        <div class="cap"><span lang="en">Light sheet</span><span lang="zh">浅色稿</span></div>
+      </div>
+    </div>
+    <figcaption><span lang="en"><b>Figure 4.</b> One icon set, two themes. The sheet is a decision tool, not a design system yet.</span><span lang="zh"><b>图 4.</b> 一套图标，两套主题。这张稿是决策工具，还不是设计系统。</span></figcaption>
+  </figure>
+
+  <p><span lang="en">The rule that came out of this: when a change has several visual answers, draw them all and let Kurt choose. A mockup costs minutes; a finished screen that gets rejected costs a day.</span><span lang="zh">这一步留下了规矩：凡是有多个视觉方案的改动，先把图都画出来让 Kurt 挑。样式稿只要几分钟；做完再被推翻要一天。</span></p>
+</section>
+
+<section id="system">
+  <h2><span class="n">03</span><span lang="en">The design system takes shape</span><span lang="zh">设计系统成形</span></h2>
+  <p><span lang="en">Version 1 was approved on 2026-11-07 and fixed the type: DM Serif Display for English headlines, Noto Serif SC for Chinese, Space Grotesk for body, DM Mono for tables, and body type for big numbers. Error strings moved to English with <code>localizeBackend()</code> mapping the backend's Chinese values. Every row button became a 30px circle.</span><span lang="zh">版本 1 在 2026-11-07 通过，先把字体定下来：英文标题 DM Serif Display，中文标题 Noto Serif SC，正文 Space Grotesk，等宽 DM Mono，大号数字改用正文字体。报错统一走英文，由 <code>localizeBackend()</code> 映射后端中文值；队列和已完成里的行按钮全部改成 30px 圆形图标。</span></p>
+  <p><span lang="en">Version 2 added one shared error block: a red dot and text in dark, a thin dark frame on a light background. Supported sites became bold outlined tags; the product name became KDownloader in English and 视频下载器 in Chinese, with no space. The same day added a light theme, L2 parchment — cream background, card shadows, selectable in settings as light, dark or follow system.</span><span lang="zh">版本 2 加了统一的报错块：深色是红点加文字，浅色是浅底加细线框。支持的网站改成粗体线框标签；软件名定为英文 KDownloader、中文「视频下载器」，中间不留空格。同一天加上浅色主题「L2 图纸米杏」：米色底、卡片投影，设置里可选浅色、深色或跟随系统。</span></p>
+
+  <figure>
+    <div class="shots two">
+      <div class="shot">
+        <button type="button" data-img="10" aria-label="Open screenshot 10 / 查看截图 10"><img src="img/10-v2-v1-dark.png" alt="web_v2 version 1 in dark: serif headlines, colored cards, circular buttons / web_v2 版本 1 深色：衬线标题、彩色卡片、圆形按钮" loading="lazy" decoding="async" width="1280" height="760"></button>
+        <div class="cap"><span lang="en">Version 1, dark</span><span lang="zh">版本 1，深色</span></div>
+      </div>
+      <div class="shot">
+        <button type="button" data-img="11" aria-label="Open screenshot 11 / 查看截图 11"><img src="img/11-v2-v2-light.png" alt="Version 2 light theme: parchment, card shadows, framed error blocks / 版本 2 浅色主题：米杏底、卡片投影、线框报错" loading="lazy" decoding="async" width="1280" height="760"></button>
+        <div class="cap"><span lang="en">Version 2, light</span><span lang="zh">版本 2，浅色</span></div>
+      </div>
+    </div>
+    <figcaption><span lang="en"><b>Figure 5.</b> Versions 1 and 2, both approved on 2026-11-07. The light theme is not an inversion; the error blocks change structure.</span><span lang="zh"><b>图 5.</b> 版本 1 和 2，都在 2026-11-07 通过。浅色不是简单反色，报错块的结构也换了。</span></figcaption>
+  </figure>
+
+  <p><span lang="en">Version 3 brought motion, one icon set, and the first-run guide. Motion covered page changes, hover, press, expand and collapse, queue shake and number bounce, and switched off under <code>prefers-reduced-motion</code>. The guide had six steps — language, theme, folder, login, ffmpeg, a three-step tutorial — and morphed into the home screen at the end. It took at least five rounds: flicker, page-up versus page-down, glass blur versus abstract bars, a two-stage morph, and a dark Recommended badge.</span><span lang="zh">版本 3 做动效、图标和首次引导。动效覆盖页面切换、悬停、按下、展开折叠、队列抖动和数字弹跳，prefers-reduced-motion 时全部关掉。引导六步：语言、主题、文件夹、登录说明、ffmpeg 说明、三步教程，最后变形回首页。它至少改了五轮：闪烁、上下翻页方向、毛玻璃还是抽象条、两段式变形、深色「推荐」标签。</span></p>
+
+  <figure>
+    <div class="shots four">
+      <div class="shot">
+        <button type="button" data-img="12" aria-label="Open screenshot 12 / 查看截图 12"><img src="img/12-onboard-step1.png" alt="Onboarding step 1: choose a language, English left, Chinese right / 引导第 1 步：选语言，英文在左，中文在右" loading="lazy" decoding="async" width="1280" height="760"></button>
+        <div class="cap"><span lang="en">Step 1 — language</span><span lang="zh">第 1 步：语言</span></div>
+      </div>
+      <div class="shot">
+        <button type="button" data-img="13" aria-label="Open screenshot 13 / 查看截图 13"><img src="img/13-onboard-step2.png" alt="Onboarding step 2: dark, light or system over a skeletonized home page / 引导第 2 步：深色、浅色或跟随系统，背景是抽象化的首页" loading="lazy" decoding="async" width="1280" height="760"></button>
+        <div class="cap"><span lang="en">Step 2 — theme</span><span lang="zh">第 2 步：主题</span></div>
+      </div>
+      <div class="shot">
+        <button type="button" data-img="14" aria-label="Open screenshot 14 / 查看截图 14"><img src="img/14-onboard-step6.png" alt="Onboarding step 6: paste, pick quality, watch progress; Get Started / 引导第 6 步：粘贴、选清晰度、看进度；Get Started" loading="lazy" decoding="async" width="1280" height="760"></button>
+        <div class="cap"><span lang="en">Step 6 — tutorial</span><span lang="zh">第 6 步：教程</span></div>
+      </div>
+      <div class="shot">
+        <button type="button" data-img="19" aria-label="Open screenshot 19 / 查看截图 19"><img src="img/19-home-zh.png" alt="The Chinese home screen at v0.2.5 / v0.2.5 中文首页" loading="lazy" decoding="async" width="1280" height="760"></button>
+        <div class="cap"><span lang="en">Where it lands — home, Chinese</span><span lang="zh">引导的落点：中文首页</span></div>
+      </div>
+    </div>
+    <figcaption><span lang="en"><b>Figure 6.</b> Onboarding, steps 1, 2 and 6, plus the screen the guide morphs into. The abstract bars behind step 2 won over a glass blur.</span><span lang="zh"><b>图 6.</b> 引导第 1、2、6 步，以及它最后变形进去的首页。第 2 步背景里的抽象条胜过了毛玻璃。</span></figcaption>
+  </figure>
+
+  <p><span lang="en">Version 4, session A, cut the font sets from 27 to 5 without dropping glyphs. The app went from 53 MB to 20 MB. The same session split the DEV panel into its own file, moved mockups into <code>ui_dev/mockups/</code>, added an offline snapshot tool, and wrote <code>tests/test_contract.py</code>: frontend calls must be a subset of the mock API, and the mock a subset of the real backend.</span><span lang="zh">版本 4 的会话 A 把字体从 27 套裁到 5 套，不裁字，安装体积从 53MB 降到 20MB。同一个会话把 DEV 面板拆成独立文件，把样式稿挪进 <code>ui_dev/mockups/</code>，加了离线快照工具，并写下 <code>tests/test_contract.py</code>：前端调用的接口必须是假接口的子集，假接口必须是后端真实接口的子集。</span></p>
+
+  <figure>
+    <div class="chart" id="chartFont" role="img" aria-label="Font sets fell from 27 to 5; app size fell from 53 MB to 20 MB / 字体从 27 套降到 5 套；体积从 53MB 降到 20MB"></div>
+    <figcaption><span lang="en"><b>Figure 7.</b> Font sets 27 → 5 and app size 53 MB → 20 MB, from version 4 session A on 2026-11-08. Each row is scaled to its own starting value. No glyphs were cut.</span><span lang="zh"><b>图 7.</b> 字体 27 套 → 5 套，体积 53MB → 20MB，数字来自 2026-11-08 的版本 4 会话 A。每一行按各自的前值缩放，没有裁字。</span></figcaption>
+  </figure>
+</section>
+
+<section id="contract">
+  <h2><span class="n">04</span><span lang="en">Front end first, back end second</span><span lang="zh">先前端，后后端</span></h2>
+  <p><span lang="en">Version 4 was meant to connect web_v2 to the real backend. It got split into session A, frontend only, and session B, the merge. When session B checked the handoff on 2026-11-12, B1–B7 had already been done in the 11-08 baseline; the notes were stale. Three tests were added, and 144 passed. Kurt added two items on the spot: backend Chinese values such as <code>stage</code> should become English code values, and a failed ffmpeg run should offer a retry button.</span><span lang="zh">版本 4 的原意是把 web_v2 和真后端接通。它被拆成会话 A（只做前端）和会话 B（融合）。2026-11-12 会话 B 核对时发现 B1–B7 其实早在 11-08 的基线里做完了，只是交接文档没更新；补了 3 个测试，144 个全过。Kurt 当场追加两条：后端的 <code>stage</code> 等中文值改成英文代码值；ffmpeg 失败后要有重试按钮。</span></p>
+  <p><span lang="en">0.2.0 had already shown the cost of moving both sides at once. From 11-12 the rule was four steps, never parallel.</span><span lang="zh">0.2.0 已经演示过两边同时动的代价。从 11-12 起，凡是两边都要改的改动固定四步，不并行。</span></p>
+
+  <div class="steps">
+    <div class="step"><span class="no">01</span><p><span lang="en">Change web_v2 and the mock API together; write the contract in <code>docs/ui/api-contract.md</code>.</span><span lang="zh">同时改 web_v2 和假接口，把接口写进 <code>docs/ui/api-contract.md</code>。</span></p></div>
+    <div class="step"><span class="no">02</span><p><span lang="en">Kurt checks the front end in the mock preview or a screenshot.</span><span lang="zh">Kurt 在假接口预览或截图里验前端。</span></p></div>
+    <div class="step"><span class="no">03</span><p><span lang="en">The backend implements the contract and does not touch the front end.</span><span lang="zh">后端照契约实现，不改前端。</span></p></div>
+    <div class="step"><span class="no">04</span><p><span lang="en">Run the real app and verify both sides together.</span><span lang="zh">接通真程序，一起验。</span></p></div>
+  </div>
+
+  <p><span lang="en">The contract test is what made the rule real. <code>tests/test_contract.py</code> scans frontend calls, the mock API and the real backend Api with AST, and requires the containment to hold. Its whitelist shrank over time. It was the most valuable check of the merge: the front end could no longer call an endpoint the backend did not have, and the mock could not promise more than the backend delivered.</span><span lang="zh">接口对账测试让这条规矩真正生效。<code>tests/test_contract.py</code> 用 AST 扫前端调用、假接口和后端 Api，要求包含关系成立，白名单逐步清空。这是融合期最有价值的一道检查：前端不能再调用后端没有的接口，假接口也不能承诺后端做不到的事。</span></p>
+</section>
+
+<section id="rollback">
+  <h2><span class="n">05</span><span lang="en">The night it broke</span><span lang="zh">出错的那一晚</span></h2>
+  <p><span lang="en">On the night of 2026-11-08, phase one ran several lines at once: layout, stats card, format table, runtime, packaging, docs. It produced 0.2.0 with a frameless window, tray close, window geometry, DEV factory reset, a preview exe and a build script. Commit <code>1786a6f</code> alone touched 28 files, +1,979 and −101 lines.</span><span lang="zh">2026-11-08 夜间，阶段一几条线同时推进：布局、统计卡、格式表、运行时、打包、文档。产出 0.2.0：无边框窗口、托盘关闭、窗口几何、DEV 恢复出厂、预览 exe 和打包脚本。仅提交 <code>1786a6f</code> 就改了 28 个文件，+1979 / −101 行。</span></p>
+  <p><span lang="en">At 01:24 on 11-09 Kurt stopped the night loop. The full measure suite — 2,148 assertions, 8 minutes 17 seconds — had run four times that night, about 33 minutes wasted. A subtask crashed and its whole line was redone. Night2 ran from 01:28 to 01:57, created a private repository, pushed branches, and left a release draft unpublished.</span><span lang="zh">2026-11-09 01:24，Kurt 叫停了夜间循环。全量 measure 共 2148 条断言、8 分 17 秒，那晚被重复跑了 4 次，约浪费 33 分钟。一个子任务异常退出，整条线重做。01:28–01:57 又跑了一轮 night2，建了私有仓库、推了分支、留了一份没发布的 Release 草稿。</span></p>
+  <p><span lang="en">In the morning Kurt opened 0.2.0. The program would not close: the title-bar close button and Alt+F4 both did nothing. DEV mode locked the interface to English. A first launch with nothing downloaded asked whether to minimize to tray.</span><span lang="zh">第二天上午 Kurt 打开 0.2.0。程序关不掉：标题栏的关闭按钮和 Alt+F4 都没反应。DEV 模式一开，界面锁死英文。首次启动什么都还没下，就弹窗问要不要最小化到托盘。</span></p>
+  <p><span lang="en">At 09:28 the tree was rolled back to 0.2.1 using an old snapshot. The bug was gone, and so were 9 test files (about 2,367 lines), <code>measure.js</code>, <code>net_smoke.py</code>, <code>tests/_isolation.py</code>, and QA fixes 39/41/42/43. An audit then checked 246 requirements one by one.</span><span lang="zh">09:28，仓库用一个旧快照整树回退到 0.2.1。bug 没了，9 个测试文件（约 2367 行）、<code>measure.js</code>、<code>net_smoke.py</code>、<code>tests/_isolation.py</code>，以及 39/41/42/43 等 QA 修复也一起没了。随后审计逐条核对了 246 条需求。</span></p>
+
+  <figure>
+    <div class="chart" id="chartAudit" role="img" aria-label="246 requirements: 184 satisfied, 7 partial, 41 lost, 3 not started, 11 awaiting a decision / 246 条需求：184 满足、7 部分满足、41 丢失、3 未做、11 待决定"></div>
+    <div class="legend">
+      <span><i style="background:var(--yellow)"></i><span lang="en">Satisfied 184</span><span lang="zh">满足 184</span></span>
+      <span><i style="background:var(--lilac)"></i><span lang="en">Partial 7</span><span lang="zh">部分满足 7</span></span>
+      <span><i style="background:var(--red)"></i><span lang="en">Missing 41</span><span lang="zh">丢失 41</span></span>
+      <span><i style="background:var(--olive)"></i><span lang="en">Not started 3</span><span lang="zh">未做 3</span></span>
+      <span><i style="background:var(--dim)"></i><span lang="en">Awaiting a decision 11</span><span lang="zh">待决定 11</span></span>
+    </div>
+    <figcaption><span lang="en"><b>Figure 8.</b> The 246-requirement audit from 2026-11-09, the day of the rollback. It is a snapshot, not a current score. The 41 missing requirements are the gap the audit found that day.</span><span lang="zh"><b>图 8.</b> 2026-11-09 回退当天的 246 条需求审计。这是当时的快照，不是现在的分数。41 条丢失的需求，是那天审计查出来的缺口。</span></figcaption>
+  </figure>
+
+  <h3><span lang="en">What went wrong</span><span lang="zh">问题出在哪</span></h3>
+  <ul class="plain">
+    <li><span lang="en"><b>Requirements were invented by the agent and frozen into tests.</b> Ask about tray on first launch and force DEV to English were never Kurt's words, yet the assertions enforced them. The greener the tests, the more official the mistake looked.</span><span lang="zh"><b>需求由 agent 自己补全，再写进测试固化。</b>首次启动问托盘、DEV 强制英文都不是 Kurt 的原话，却被写进验收断言。测试越绿，错误行为越「合法」。</span></li>
+    <li><span lang="en"><b>Acceptance ran only on mocks and a fake window.</b> The real pywebview path never ran.</span><span lang="zh"><b>只在假接口和假窗口上验收。</b>真实的 pywebview 路径一次没跑过。</span></li>
+    <li><span lang="en"><b>One commit mixed several requirements.</b> When close broke, the whole batch was unshippable.</span><span lang="zh"><b>一个提交混了多条需求。</b>关闭流程一坏，整批都不可交付。</span></li>
+    <li><span lang="en"><b>The rollback replaced the whole tree</b> instead of reverting the files that broke.</span><span lang="zh"><b>用整树快照回退</b>，而不是定向 revert 坏掉的文件。</span></li>
+    <li><span lang="en"><b>All tests green was treated as ready to ship.</b></span><span lang="zh"><b>把「测试全绿」当成「可以交付」。</b></span></li>
+    <li><span lang="en"><b>Test numbers in the docs were typed by hand.</b> One handoff said 168 and 187 on the same page; an issue said 1,050 passing while the run had 1,046 and 4 failures.</span><span lang="zh"><b>文档里的测试数是手写的。</b>同一份交接文档同时写了 168 和 187；issue 写 1050 PASS，实际是 1046 PASS / 4 FAIL。</span></li>
+  </ul>
+
+  <p><span lang="en">The night loop came back with hard rules. The main agent only takes 1–3 minute jobs; long work goes to subagents or the background; at most one expensive agent runs at a time; the next job is dispatched the moment its dependency lands; and every run has a hard deadline.</span><span lang="zh">夜间循环后来补了硬规则：主 agent 只做 1–3 分钟的短活；长任务交给子 agent 或后台；高消耗 agent 同一时间只允许一个；依赖一完成就派下一单；每一轮都有硬截止。</span></p>
+</section>
+
+<section id="batches">
+  <h2><span class="n">06</span><span lang="en">Batches, and a program that can close</span><span lang="zh">分批修回来，先让它关得掉</span></h2>
+
+  <h3><span lang="en">Close flow · v0.2.2 · 2026-11-12</span><span lang="zh">关闭流程 · v0.2.2 · 2026-11-12</span></h3>
+  <p><span lang="en">Kurt moved the close flow to the front of the queue for one reason: the worst bug of the project was a program that would not exit. The first click on the close button now opens a dialog — minimize to tray, quit, or cancel — with tray highlighted by default. The choice is remembered and can be changed in settings; quitting with downloads running asks again. Three bottom lines keep any path from hanging: if the dialog does not appear within 3 seconds, quit; if tray was chosen but tray is unavailable, quit; Alt+F4 and the taskbar close take the same path.</span><span lang="zh">Kurt 把关闭流程无限往前提，理由只有一个：项目最严重的 bug 就是程序关不掉。第一次点关闭按钮会弹窗：缩到托盘、退出、取消，默认高亮缩到托盘；选择会被记住，设置里能改；有任务在跑步退出要再确认。三条底线保证任何路径都不卡住：弹窗 3 秒没出来直接退；选了托盘但托盘不可用直接退；Alt+F4 和任务栏关闭走同一套规则。</span></p>
+  <p><span lang="en">Kurt also changed the exit itself: make it fast. Quitting ends the download subprocess only. It does not cancel tasks, clean up, or wait, and partial files stay on disk. The front end got a mockup first — three title bars, two dialogs, tray menu options — then the backend implemented the frameless window, drawn title bar, eight-way resize, tray, single instance and geometry restore. A real-window test passed on 2026-11-12 and v0.2.2 shipped. The tray icon looked wrong and became todo 64.</span><span lang="zh">退出本身也改了：要快。退出只结束下载子进程，不取消任务、不清理、不等待，半截文件留在磁盘上。前端先出样式稿——三种标题栏、两种弹窗、托盘菜单方案——后端随后实现无边框窗口、自绘标题栏、八方向拉伸、托盘、单实例和窗口几何恢复。2026-11-12 真窗口实测通过，发 v0.2.2。托盘图标看不清，记成待办 64。</span></p>
+
+  <figure>
+    <div class="shots">
+      <div class="shot tall">
+        <button type="button" data-img="16" aria-label="Open screenshot 16 / 查看截图 16"><img src="img/16-close-window-dark.png" alt="Close-flow study: three title bars, first-click dialogs, a running-task warning / 关闭流程样式稿：三种标题栏、首次点击弹窗、有任务在下载的提示" loading="lazy" decoding="async" width="1280" height="1400"></button>
+        <div class="cap"><span lang="en">Title bars, dialogs, icon candidates, tray menu</span><span lang="zh">标题栏、弹窗、图标候选、托盘菜单</span></div>
+      </div>
+    </div>
+    <figcaption><span lang="en"><b>Figure 9.</b> The close-flow study. Option C for the title bar — no separate strip, controls float at the top right — was the one that shipped.</span><span lang="zh"><b>图 9.</b> 关闭流程样式稿。标题栏最终选了 C：没有单独一条栏，按钮浮在右上角。</span></figcaption>
+  </figure>
+
+  <h3><span lang="en">Batch 1 · v0.2.3 · 2026-11-12–13</span><span lang="zh">第 1 批 · v0.2.3 · 2026-11-12–13</span></h3>
+  <p><span lang="en">Batch 1 was the first test of the new rule. The front end landed on 11-12 with the mock API (<code>8dff4bb</code>); the backend followed on 11-13 against the contract (<code>bb77796</code>), restoring <code>tests/_isolation.py</code> and reaching 209 backend tests. The queue's big number now shows whole-batch progress, so it no longer falls to 0% after every video. <code>stage</code>, <code>quality</code> and <code>kind</code> are English code values. Failed rows group by <code>error_kind</code>, with the raw error collapsible, and an ffmpeg failure gets a retry button. The stats card opens the download folder, and the DEV panel has a factory reset. v0.2.3.</span><span lang="zh">第 1 批是新规矩的第一次实测。前端 11-12 连同假接口先落地（<code>8dff4bb</code>）；后端 11-13 照契约跟上（<code>bb77796</code>），恢复 <code>tests/_isolation.py</code>，后端测试达到 209 个。队列大数字改成整批总进度，不再每完成一个视频回 0%。<code>stage</code>、<code>quality</code>、<code>kind</code> 改成英文代码值。失败行按 <code>error_kind</code> 分类，原文可折叠；ffmpeg 失败加「重试」。统计卡点击打开下载文件夹，DEV 面板有恢复出厂。发 v0.2.3。</span></p>
+
+  <h3><span lang="en">Batch 2 · v0.2.4 · 2026-11-13</span><span lang="zh">第 2 批 · v0.2.4 · 2026-11-13</span></h3>
+  <p><span lang="en">Batch 2 was front end only, previewed on the mock and then shipped. One dialog system replaced 15 native <code>confirm()</code> calls. Dropdowns became drawn menus; option C won — black panel, thin frame, orange bar. The disk usage number got a small unit and shrinks to 18px when space runs out. The format table became compact and wraps at container width ≤420px. A new +N badge fades after 3 seconds with an odometer roll, the shake has two tiers (1–4 items, then 5 or more), and the summary card animates its height in 300ms. Start here follows the language. The light-theme dev log got a proper selection color. Completed rows no longer replay their animation at launch, and the download-to card no longer flies away at the end of onboarding. v0.2.4.</span><span lang="zh">第 2 批只改前端，先在假接口预览、Kurt 验过再发。统一的对话框系统替换了 15 处原生 <code>confirm()</code>。下拉改成自绘菜单，方案 C 胜出：黑底、细线框、橙色竖条。占用空间数字带小号单位，放不下自动缩到 18px。格式表变紧凑，容器宽度 ≤420px 时自动折成两行。新的 +N 角标 3 秒淡出，带里程表滚轮；抖动分两档（1–4 个，5 个以上）；摘要卡高度 300ms 平滑。Start here 跟随语言。浅色主题的开发者日志有了正确的选中态。启动时已完成不重播动画，引导结束的下载到小卡不再飞走。发 v0.2.4。</span></p>
+  <p><span lang="en">Todo 64 fixed the tray icon properly. The old <code>.ico</code> was a different design, and its small frames were broken — a crop of the top-left of the large image. <code>assets/make_icon.py</code> now draws every size from 16 to 256, the tray reads native frames by <code>SM_CXSMICON</code>, and <code>tests/test_icon.py</code> guards against a broken frame coming back.</span><span lang="zh">待办 64 把托盘图标真正修了。旧 <code>.ico</code> 是另一套设计，小尺寸帧本身是坏的——大图左上角的裁切。现在由 <code>assets/make_icon.py</code> 按 16–256 共九个尺寸逐帧重画，托盘按 <code>SM_CXSMICON</code> 取原生帧，并加了 <code>tests/test_icon.py</code> 防回归。</span></p>
+
+  <figure>
+    <div class="shots two">
+      <div class="shot">
+        <button type="button" data-img="17" aria-label="Open screenshot 17 / 查看截图 17"><img src="img/17-confirm-select.png" alt="Unified dialogs and dropdown styles; option C was chosen / 统一确认框和下拉样式，最终选方案 C" loading="lazy" decoding="async" width="1280" height="760"></button>
+        <div class="cap"><span lang="en">Dialogs and dropdowns, batch 2</span><span lang="zh">第 2 批的确认框和下拉</span></div>
+      </div>
+      <div class="shot">
+        <button type="button" data-img="15" aria-label="Open screenshot 15 / 查看截图 15"><img src="img/15-plus-n.png" alt="The +N badge study: queue, accumulated, stats card fading out / +N 角标样式稿：队列、累加、统计卡淡出" loading="lazy" decoding="async" width="2020" height="1180"></button>
+        <div class="cap"><span lang="en">The +N badge, three states</span><span lang="zh">+N 角标的三种状态</span></div>
+      </div>
+    </div>
+    <figcaption><span lang="en"><b>Figure 10.</b> Two batch-2 studies. The dialog set replaced 15 native confirmations; the badge fades after 3 seconds and rolls like an odometer.</span><span lang="zh"><b>图 10.</b> 第 2 批的两张样式稿。确认框替换了 15 处原生弹窗；+N 角标 3 秒后淡出，像里程表一样滚动。</span></figcaption>
+  </figure>
+</section>
+
+<section id="exe">
+  <h2><span class="n">07</span><span lang="en">One portable exe</span><span lang="zh">一个便携 exe</span></h2>
+  <p><span lang="en">v0.2.5 turned the project into something you can hand to someone: one portable exe, built by PyInstaller with <code>--onefile --windowed</code>. No console window, its own icon, and only web_v2 bundled; the old web/ folder stays out.</span><span lang="zh">v0.2.5 把项目做成了能直接递给别人用的东西：一个便携 exe，PyInstaller <code>--onefile --windowed</code> 打包。没有黑窗，带自己的图标，只打 web_v2，旧 web/ 不进包。</span></p>
+  <p><span lang="en">Portable meant no installer, so the language question had no installation step to attach to. On first run, when there is no <code>config.json</code>, and after a factory reset, the app follows the Windows display language; if it cannot read it, it falls back to <code>en</code>. Existing configs keep their language. This replaced the earlier rule of defaulting new installs to English.</span><span lang="zh">便携就意味着没有安装过程，「安装时选语言」没有地方可做。首次启动（没有 <code>config.json</code>）和恢复出厂时，语言跟随 Windows 系统语言；读不到就退回 <code>en</code>。已有配置不动它的语言。这条覆盖了更早的「新装默认英文」。</span></p>
+  <p><span lang="en">A second exe runs the interface against a local HTTP server and the mock API, with its data directory pointed at a temp folder and command-line arguments passed as query parameters, such as <code>onboarded=1&amp;lang=zh</code>. The preview build has its own file name, title and icon; it is the build used for design sign-off.</span><span lang="zh">另有一个预览 exe：本地 HTTP 服务加假接口，数据目录指向临时文件夹，命令行参数当查询参数用，例如 <code>onboarded=1&amp;lang=zh</code>。预览版的文件名、标题和图标都和正式版区分，专门用来做界面验收。</span></p>
+  <p><span lang="en">Login became a singleton: a second request returns <code>code: "login_open"</code>, and cookie polling dropped to every 3 seconds. If WebView2 is missing, the app reads the registry, shows a native dialog, runs the bundled Microsoft-signed installer silently, checks again, and only then exits with the download link.</span><span lang="zh">登录窗口改成单例：第二次调用返回 <code>code: "login_open"</code>；cookies 采集频率降到 3 秒。缺 WebView2 时，程序读注册表检测、弹原生对话框说明、静默运行内置的微软签名安装器、再检测一次，仍然失败才给出官网地址并退出。</span></p>
+  <p><span lang="en">Tests at the tag: 253 Python and 8 Node. The final run while writing the retrospective: 256 Python and 8 Node, all passing.</span><span lang="zh">打 tag 时是 253 个 Python 测试加 8 个 Node 测试。写复盘时最终实跑：256 个 Python 加 8 个 Node，全过。</span></p>
+
+  <figure>
+    <div class="shots two">
+      <div class="shot">
+        <button type="button" data-img="18" aria-label="Open screenshot 18 / 查看截图 18"><img src="img/18-home-en.png" alt="The v0.2.5 home screen in English / v0.2.5 英文首页" loading="lazy" decoding="async" width="1280" height="760"></button>
+        <div class="cap"><span lang="en">Home, English</span><span lang="zh">首页，英文</span></div>
+      </div>
+      <div class="shot">
+        <button type="button" data-img="19" aria-label="Open screenshot 19 / 查看截图 19"><img src="img/19-home-zh.png" alt="The v0.2.5 home screen in Chinese / v0.2.5 中文首页" loading="lazy" decoding="async" width="1280" height="760"></button>
+        <div class="cap"><span lang="en">Home, Chinese</span><span lang="zh">首页，中文</span></div>
+      </div>
+      <div class="shot">
+        <button type="button" data-img="20" aria-label="Open screenshot 20 / 查看截图 20"><img src="img/20-settings-en.png" alt="The settings screen at v0.2.4/0.2.5 / v0.2.4/0.2.5 设置页" loading="lazy" decoding="async" width="1280" height="760"></button>
+        <div class="cap"><span lang="en">Settings, dark</span><span lang="zh">设置页，深色</span></div>
+      </div>
+      <div class="shot">
+        <button type="button" data-img="21" aria-label="Open screenshot 21 / 查看截图 21"><img src="img/21-settings-light.png" alt="Settings in the light theme, in Chinese / 浅色主题设置页，中文界面" loading="lazy" decoding="async" width="1280" height="760"></button>
+        <div class="cap"><span lang="en">Settings, light</span><span lang="zh">设置页，浅色</span></div>
+      </div>
+    </div>
+    <figcaption><span lang="en"><b>Figure 11.</b> The v0.2.5 interface in four views. Home and settings keep the same layout across both themes and both languages; only color and strings change.</span><span lang="zh"><b>图 11.</b> v0.2.5 界面的四个视图。首页和设置页在深浅两套主题、中英两种语言下布局一致，只换颜色和文字。</span></figcaption>
+  </figure>
+
+  <figure>
+    <div class="chart" id="chartTests" role="img" aria-label="Python tests grew from 119 at v0.1.12 to 256 on the final run / Python 测试从 v0.1.12 的 119 个增长到最终实跑的 256 个"></div>
+    <figcaption><span lang="en"><b>Figure 12.</b> Python tests at recorded points, drawn from zero. v0.1.12 119; session B check 144; batch 1 backend 209; v0.2.4 211; v0.2.5 253; final run 256. Node tests add 8. The 0.2.0 branch briefly ran 168–192 tests, but that work was rolled back.</span><span lang="zh"><b>图 12.</b> 有记录的 Python 测试数，从 0 起画。v0.1.12 119；会话 B 核对 144；第 1 批后端 209；v0.2.4 211；v0.2.5 253；最终实跑 256。Node 测试另有 8 个。0.2.0 分支一度跑到 168–192 个，但那部分被回退了。</span></figcaption>
+  </figure>
+</section>
+
+<section id="lessons">
+  <h2><span class="n">08</span><span lang="en">Seven things I would carry forward</span><span lang="zh">七条会带走的经验</span></h2>
+  <div class="lessons">
+    <div class="lesson l1">
+      <div class="no">01</div>
+      <h3><span lang="en">Green tests are not a shippable build</span><span lang="zh">测试全绿不等于可以交付</span></h3>
+      <p><span lang="en">0.2.0 passed its suite and could not close. Every stage now needs one real-window smoke test: launch, switch language, toggle DEV, click close, and watch the process exit.</span><span lang="zh">0.2.0 测试全过，但关不掉。现在每个阶段至少一条真实窗口冒烟：启动、切语言、开关 DEV、点关闭、看进程退出。</span></p>
+    </div>
+    <div class="lesson l2">
+      <div class="no">02</div>
+      <h3><span lang="en">Ask whose words a requirement is</span><span lang="zh">先问这条需求是谁说的</span></h3>
+      <p><span lang="en">Agent-invented requirements became assertions, and the assertions made the mistake permanent. A test can protect a bug as easily as a feature.</span><span lang="zh">agent 自己补的需求写成了断言，断言又把错误固定下来。测试保护 bug 和保护功能一样容易。</span></p>
+    </div>
+    <div class="lesson l3">
+      <div class="no">03</div>
+      <h3><span lang="en">One change, one commit, one contract</span><span lang="zh">一次改动、一个提交、一份契约</span></h3>
+      <p><span lang="en">Commit 1786a6f touched 28 files; when one flow broke, nothing could ship. Move the front end against the mock, the backend against the contract, then bring both together.</span><span lang="zh">1786a6f 一次改了 28 个文件；一条流程坏了，整批都发不出去。前端对假接口，后端对契约，最后再合起来。</span></p>
+    </div>
+    <div class="lesson l4">
+      <div class="no">04</div>
+      <h3><span lang="en">Revert files, don't replace the tree</span><span lang="zh">定向 revert，不要整树替换</span></h3>
+      <p><span lang="en">The snapshot rollback removed 2,367 lines of tests and three QA tools along with the bug. Write the loss list before rolling back.</span><span lang="zh">整树回退把 bug 和 2367 行测试、三个 QA 工具一起删了。回退前先列清会丢什么。</span></p>
+    </div>
+    <div class="lesson l5">
+      <div class="no">05</div>
+      <h3><span lang="en">Visual choices belong to the person who will look at them</span><span lang="zh">视觉方案让最终要看的人挑</span></h3>
+      <p><span lang="en">Layouts A–D, an icon sheet, three title bars, three dropdowns. Mockups are cheap. Onboarding still took five rounds, and that was the right trade.</span><span lang="zh">布局 A–D、图标稿、三种标题栏、三种下拉。样式稿很便宜。引导还是改了五轮，这个交换是值得的。</span></p>
+    </div>
+    <div class="lesson l6">
+      <div class="no">06</div>
+      <h3><span lang="en">The exit path is part of the product</span><span lang="zh">退出路径也是产品</span></h3>
+      <p><span lang="en">A downloader that cannot quit is broken, whatever the tests say. Three bottom lines, and a fast exit that keeps partial files.</span><span lang="zh">关不掉的下载器就是坏的，测试说什么都没用。三条底线，加上保留半截文件的快速退出。</span></p>
+    </div>
+    <div class="lesson l7">
+      <div class="no">07</div>
+      <h3><span lang="en">Packaging is product work</span><span lang="zh">打包是产品工作</span></h3>
+      <p><span lang="en">One portable exe removed the installer, and with it the place to choose a language, so first launch now follows Windows. WebView2 detection, tray icon frames and the login singleton are part of the experience, not build trivia.</span><span lang="zh">便携单 exe 去掉了安装包，也去掉了选语言的地方，所以首次启动改为跟随系统。WebView2 检测、托盘图标的每一个尺寸、登录窗口单例，都是体验的一部分，不是打包杂事。</span></p>
+    </div>
+  </div>
+
+  <p class="aside"><span lang="en">A parallel story sits behind this project: the dispatch layer for DeepSeek grew from one rule into a full architecture, then was torn down to one skill and a turn cap. I wrote that one up separately in <a href="https://kurtliu309.github.io/kurts-bitter-lesson/">Kurt's Bitter Lesson</a>.</span><span lang="zh">这个项目背后还有一条平行故事：派发 DeepSeek 的方案从一条规则长成整套架构，最后又被砍到只剩一个 skill 和回合上限。那一篇单独写在 <a href="https://kurtliu309.github.io/kurts-bitter-lesson/">Kurt's Bitter Lesson</a> 里。</span></p>
+</section>
+
+<section id="missing">
+  <h2><span class="n">09</span><span lang="en">Missing pieces</span><span lang="zh">还缺什么</span></h2>
+  <p><span lang="en">The v0.2.5 tag is a working build, not a finished product.</span><span lang="zh">v0.2.5 是一个能用的版本，不是完成品。</span></p>
+
+  <h3><span lang="en">Not done</span><span lang="zh">还没做</span></h3>
+  <ul class="plain">
+    <li><span lang="en"><b>The release exe has been smoke-tested in English on one machine.</b> The v0.2.5 build launched, downloaded, and quit cleanly there. The Chinese interface, other Windows builds and other machines are still unverified.</span><span lang="zh"><b>正式版 exe 已在一台机器上按英文用户冒烟通过。</b>v0.2.5 在这台机器上启动、下载、退出都正常。中文界面、其他 Windows 版本和其他机器的表现还没验过。</span></li>
+    <li><span lang="en"><b>Old web/ is still in the tree, unpackaged.</b> web_v2 keeps its name — about ten references to change, no benefit.</span><span lang="zh"><b>旧 web/ 还在仓库里，但不进包。</b>web_v2 决定不改名：要改约 10 处，没有收益。</span></li>
+    <li><span lang="en"><b>Todo 66 is open.</b> Some backend strings are still hard-coded Chinese, so the English interface is incomplete.</span><span lang="zh"><b>待办 66 还没做。</b>部分后端文字仍写死中文，英文界面还不完整。</span></li>
+    <li><span lang="en"><b>Todo 51 is open.</b> The stats card and the right column have not been measured at multiple window sizes.</span><span lang="zh"><b>待办 51 还没做。</b>统计卡和右列还没有在多种窗口尺寸下实测。</span></li>
+    <li><span lang="en"><b>Todo 63 is open.</b> The program icon needs another design pass.</span><span lang="zh"><b>待办 63 还没做。</b>程序图标还要再出几版设计。</span></li>
+  </ul>
+
+  <h3><span lang="en">Limits of this report</span><span lang="zh">这篇记录的局限</span></h3>
+  <ul class="plain">
+    <li><span lang="en"><b>The 246-requirement audit is dated 2026-11-09 and has not been repeated.</b> It found 41 missing and 11 waiting on a decision; later batches changed the picture, but there is no fresh audit.</span><span lang="zh"><b>246 条需求的审计停在 2026-11-09，之后没有重做。</b>当时 41 条丢失、11 条待 Kurt 决定；后面的分批改变了情况，但没有新的审计。</span></li>
+    <li><span lang="en"><b>Test counts are snapshots.</b> They run from 119 to 256 in this report, and older handoff documents disagree with each other. Each number is tied to a date, not to the current tree.</span><span lang="zh"><b>测试数是时间点快照。</b>这篇里从 119 到 256，旧的交接文档之间也互相矛盾。每个数字只对应它的日期，不对应当前代码。</span></li>
+    <li><span lang="en"><b>One person, one Windows machine, no real-user data.</b> There are no metrics on whether people keep the app, and no install or usage telemetry.</span><span lang="zh"><b>一个人、一台 Windows 机器、没有真实用户数据。</b>没有留存指标，也没有安装或使用统计。</span></li>
+    <li><span lang="en"><b>The screenshots are mockups and fake interfaces, not live user data.</b> The preview build points its data directory at a temp folder for exactly this reason.</span><span lang="zh"><b>截图来自样式稿和假接口，不含真实用户数据。</b>预览版把数据目录指向临时文件夹，就是为了这个。</span></li>
+  </ul>
+</section>
+
+<footer>
+  <p><span lang="en">KDownloader · a field report by Kurt · 2026-11-13. Sources: the project retrospective, handoff notes, the backlog, the UI contract, and 21 screenshots taken on 2026-11-13. One HTML file; the only external request is Google Fonts.</span><span lang="zh">KDownloader · Kurt 的现场报告 · 2026-11-13。素材：项目复盘、交接文档、待办清单、接口契约，以及 2026-11-13 拍的 21 张截图。单个 HTML 文件，唯一的外部请求是 Google Fonts。</span></p>
+  <p><span lang="en">Built with Claude and DeepSeek sessions. The mistakes in it are mine.</span><span lang="zh">由 Claude 和 DeepSeek 会话协作完成。里面的错误是我的。</span></p>
+  <p><span lang="en">← <a href="../">Back to the KDownloader page</a></span><span lang="zh">← <a href="../">返回 KDownloader 发布页</a></span></p>
+</footer>
+
+</div>
+
+<div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Screenshot / 截图" hidden>
+  <button type="button" class="lb-x" id="lbClose"><span lang="en">Close</span><span lang="zh">关闭</span></button>
+  <figure>
+    <img id="lbImg" alt="" loading="lazy" decoding="async">
+    <figcaption id="lbCap"></figcaption>
+  </figure>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var root=document.documentElement;
+  var $=function(s){return document.querySelector(s)};
+  var $$=function(s){return Array.prototype.slice.call(document.querySelectorAll(s))};
+  var NS='http://www.w3.org/2000/svg';
+  var tip=$('#tip');
+  var bi=function(en,zh){return '<span lang="en">'+en+'</span><span lang="zh">'+zh+'</span>'};
+  var esc=function(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')};
+  function el(tag,attrs,parent){
+    var n=document.createElementNS(NS,tag);
+    if(attrs){for(var k in attrs){if(attrs.hasOwnProperty(k))n.setAttribute(k,attrs[k])}}
+    if(parent)parent.appendChild(n);
+    return n;
+  }
+  function txt(parent,x,y,str,cls,anchor){
+    var t=el('text',{x:x,y:y},parent);
+    if(cls)t.setAttribute('class',cls);
+    if(anchor)t.setAttribute('text-anchor',anchor);
+    t.textContent=str;
+    return t;
+  }
+  function bitxt(parent,x,y,en,zh,cls,anchor){
+    var a=txt(parent,x,y,en,cls,anchor);a.setAttribute('lang','en');
+    var b=txt(parent,x,y,zh,cls,anchor);b.setAttribute('lang','zh');
+    return [a,b];
+  }
+  function svgBox(w,h){return el('svg',{viewBox:'0 0 '+w+' '+h,role:'img'})}
+  function mount(sel,node){var box=$(sel);if(box){box.innerHTML='';box.appendChild(node)}}
+  function showTip(e,html){
+    tip.innerHTML=html;
+    tip.style.opacity='1';
+    var w=tip.offsetWidth,h=tip.offsetHeight;
+    var x=e.clientX+14,y=e.clientY+14;
+    if(x+w>window.innerWidth-10)x=e.clientX-w-14;
+    if(y+h>window.innerHeight-10)y=e.clientY-h-14;
+    tip.style.left=x+'px';tip.style.top=y+'px';
+  }
+  function hideTip(){tip.style.opacity='0'}
+  function hover(node,en,zh){
+    var html=bi(en,zh);
+    node.addEventListener('mousemove',function(e){showTip(e,html)});
+    node.addEventListener('mouseleave',hideTip);
+    node.addEventListener('pointerdown',function(e){showTip(e,html)});
+  }
+  document.addEventListener('pointerdown',function(e){
+    if(!e.target.closest('svg'))hideTip();
+  });
+
+  /* ---------- language ---------- */
+  function setLang(l){
+    if(l!=='zh')l='en';
+    root.setAttribute('lang',l);
+    document.title=l==='zh'?'KDownloader — 走到 v0.2.5 的七天':'KDownloader — seven days to v0.2.5';
+    $$('.langswitch button').forEach(function(b){
+      b.setAttribute('aria-pressed',String(b.getAttribute('data-lang')===l));
+    });
+    try{localStorage.setItem('kdl-lang',l)}catch(e){}
+  }
+  $$('.langswitch button').forEach(function(b){
+    b.addEventListener('click',function(){setLang(b.getAttribute('data-lang'))});
+  });
+  var initialLang='en';
+  try{var savedLang=localStorage.getItem('kdl-lang');if(savedLang==='zh'||savedLang==='en')initialLang=savedLang}catch(e){}
+  setLang(initialLang);
+
+  /* ---------- theme ---------- */
+  function isDark(){
+    var t=root.getAttribute('data-theme');
+    if(t)return t==='dark';
+    return true; /* dark is the default; the toggle is per visit only */
+  }
+  function syncThemeBtn(){
+    var d=isDark();
+    var en=$('#thEn'),zh=$('#thZh');
+    if(en)en.textContent=d?'Dark':'Light';
+    if(zh)zh.textContent=d?'深色':'浅色';
+  }
+  syncThemeBtn();
+  $('#themebtn').addEventListener('click',function(){
+    var next=isDark()?'light':'dark';
+    root.setAttribute('data-theme',next);
+    syncThemeBtn();
+  });
+
+  /* ---------- image metadata ---------- */
+  var IMG={
+    '01':{f:'img/01-old-web-home.png',w:1280,h:760,en:'The old web/ frontend: four tabs, a blue button, an almost empty page.',zh:'旧 web/ 前端：四个页签、一个蓝色按钮，页面几乎是空的。'},
+    '02':{f:'img/02-layout-a-dashboard.png',w:1280,h:760,en:'Layout A: paste box, video, playlist, queue and calendar on one dashboard.',zh:'方案 A：粘贴框、视频、合集、队列和日历摊在一屏。'},
+    '03':{f:'img/03-layout-b-tabs.png',w:1280,h:760,en:'Layout B: tabs on top, parse results as a card grid, queue pinned right.',zh:'方案 B：顶部页签，解析结果按卡片格排，右侧固定队列。'},
+    '04':{f:'img/04-settings-layout-a.png',w:1280,h:760,en:'Settings A: the download folder spans a full row.',zh:'设置 A：下载文件夹占满一整行。'},
+    '05':{f:'img/05-settings-layout-b.png',w:1280,h:760,en:'Settings B: folder on top, concurrency and language stacked at right.',zh:'设置 B：文件夹在上，右侧叠放同时下载和语言。'},
+    '06':{f:'img/06-settings-layout-c.png',w:1280,h:760,en:'Settings C: a flatter folder card, four compact cards in a row.',zh:'设置 C：文件夹卡压扁，四个小卡并排。'},
+    '07':{f:'img/07-settings-layout-d.png',w:1280,h:760,en:'Settings D, the chosen layout: prefix top-right, four aligned cards below.',zh:'方案 D，最终采用：前缀在右上，下方四卡对齐。'},
+    '08':{f:'img/08-icons-picker-dark.png',w:1280,h:760,en:'Icon sheet in dark: old, new A, new B and hover, all at 1.5px.',zh:'深色图标挑选稿：旧、新 A、新 B、悬停，线宽 1.5。'},
+    '09':{f:'img/09-icons-picker-light.png',w:1280,h:760,en:'The same icon sheet in the light theme, checking contrast.',zh:'同一张挑选稿的浅色版本，用来确认对比度。'},
+    '10':{f:'img/10-v2-v1-dark.png',w:1280,h:760,en:'web_v2 version 1 in dark: serif headlines, colored cards, circular buttons.',zh:'web_v2 版本 1 深色：衬线标题、彩色卡片、圆形按钮。'},
+    '11':{f:'img/11-v2-v2-light.png',w:1280,h:760,en:'Version 2 light theme: parchment, card shadows, framed error blocks.',zh:'版本 2 浅色主题：米杏底、卡片投影、线框报错。'},
+    '12':{f:'img/12-onboard-step1.png',w:1280,h:760,en:'Onboarding step 1: choose a language, English left, Chinese right.',zh:'引导第 1 步：选语言，英文在左，中文在右。'},
+    '13':{f:'img/13-onboard-step2.png',w:1280,h:760,en:'Onboarding step 2: dark, light or system, over a skeletonized home page.',zh:'引导第 2 步：深色、浅色或跟随系统，背景是抽象化的首页。'},
+    '14':{f:'img/14-onboard-step6.png',w:1280,h:760,en:'Onboarding step 6: paste, pick quality, watch progress; Get Started.',zh:'引导第 6 步：粘贴、选清晰度、看进度；Get Started。'},
+    '15':{f:'img/15-plus-n.png',w:2020,h:1180,en:'The +N badge study: queue +3, accumulated +4, stats card +2 fading out.',zh:'+N 角标样式稿：队列 +3、累加到 +4、统计卡 +2 淡出。'},
+    '16':{f:'img/16-close-window-dark.png',w:1280,h:1400,en:'Close-flow study: three title bars, first-click dialogs, a running-task warning.',zh:'关闭流程样式稿：三种标题栏、首次点击弹窗、有任务在下载的提示。'},
+    '17':{f:'img/17-confirm-select.png',w:1280,h:760,en:'Unified dialogs and dropdowns; option C uses a black panel, thin frame and orange bar.',zh:'统一确认框和下拉菜单；方案 C 是黑底细线框加橙色竖条。'},
+    '18':{f:'img/18-home-en.png',w:1280,h:760,en:'The v0.2.5 home screen in English: paste box, 01-04 guide, summary cards.',zh:'v0.2.5 英文首页：粘贴框、01–04 引导、三张摘要卡。'},
+    '19':{f:'img/19-home-zh.png',w:1280,h:760,en:'The same home screen in Chinese, every label localized.',zh:'同一页面的中文版，所有标签随语言切换。'},
+    '20':{f:'img/20-settings-en.png',w:1280,h:760,en:'Settings at v0.2.4/0.2.5: folders, concurrency, options, appearance, close behavior.',zh:'v0.2.4/0.2.5 设置页：文件夹、同时下载、下载选项、外观、关窗行为。'},
+    '21':{f:'img/21-settings-light.png',w:1280,h:760,en:'Settings in the light theme, in Chinese.',zh:'浅色主题下的设置页，中文界面。'}
+  };
+
+  /* ---------- timeline ---------- */
+  var STAGES=[
+    {d:'2026-11-07',tEn:'A rough start',tZh:'粗糙的起点',
+     bEn:'The backend reached v0.1.12 with 119 tests passing. The old web/ frontend was four tabs, a blue button and a lot of empty space.',
+     bZh:'后端做到 v0.1.12，119 个测试全过。旧 web/ 前端是四个页签、一个蓝色按钮，和一大片空白。',
+     bullets:[
+      ['Queue, batch and playlist downloads, retry, a rotating dev log, cookie login.','队列、批量与合集、重试、轮换日志、cookies 登录。'],
+      ['v0.1.12 recorded as stable: 119 tests.','v0.1.12 记为稳定：119 个测试。'],
+      ['Decision: rebuild the visuals as web_v2, leave the backend alone.','决定：视觉另起 web_v2，后端不动。']
+     ],imgs:['01']},
+    {d:'2026-11-07 – 11-08',tEn:'Mockups first',tZh:'先出样式稿',
+     bEn:'Two layout directions and four settings pages, drawn before any of it was coded. The five card colors appear for the first time.',
+     bZh:'先画了两个布局方向和四套设置页，再写代码。五色卡片第一次出现。',
+     bullets:[
+      ['Layout A: one dashboard. Layout B: tabs plus a card grid.','方案 A：一屏仪表盘。方案 B：页签加卡片格。'],
+      ['Settings layouts A-D; Kurt picked D.','设置页方案 A–D，Kurt 选了 D。'],
+      ['Icon sheet: folder A, delete A, broom B, circled exclamation mark; 1.5px lines.','图标稿：文件夹 A、删除 A、扫帚 B、圆圈叹号；线宽 1.5。']
+     ],imgs:['02','03','04','05','06','07']},
+    {d:'2026-11-07',tEn:'The look lands',tZh:'样子定下来',
+     bEn:'Versions 1 and 2 were approved on the same day: type, errors, site tags, the name, and a light theme.',
+     bZh:'版本 1 和 2 在同一天通过：字体、报错、网站标签、软件名，还有浅色主题。',
+     bullets:[
+      ['Version 1: the type system, English errors, 30px circular row buttons.','版本 1：字体系统、英文报错、30px 圆形行按钮。'],
+      ['Version 2: one error block, outlined site tags, the name KDownloader, light theme L2.','版本 2：统一报错块、线框网站标签、名字 KDownloader、浅色主题 L2。']
+     ],imgs:['10','11']},
+    {d:'2026-11-07 – 11-08',tEn:'Motion, icons, onboarding',tZh:'动画、图标、引导',
+     bEn:'Version 3 added motion, one icon set and a six-step first-run guide. The guide took at least five rounds.',
+     bZh:'版本 3 加了动效、统一图标和六步首次引导。引导至少改了五轮。',
+     bullets:[
+      ['Motion off under prefers-reduced-motion.','prefers-reduced-motion 时关掉全部动效。'],
+      ['Onboarding: language, theme, folder, login, ffmpeg, a three-step tutorial.','引导：语言、主题、文件夹、登录、ffmpeg、三步教程。'],
+      ['Fonts 27 to 5 without dropping glyphs; app size 53 MB to 20 MB.','字体 27 套裁到 5 套不裁字；体积 53MB 降到 20MB。']
+     ],imgs:['08','09','12','13','14']},
+    {d:'2026-11-08 – 11-09',tEn:'The night it broke',tZh:'出错的那一晚',
+     bEn:'0.2.0 shipped frameless windows, tray and packaging in one night. In the morning the program would not close; at 09:28 the tree was rolled back.',
+     bZh:'0.2.0 一夜之间做了无边框、托盘和打包。第二天上午程序关不掉；09:28 整树回退。',
+     bullets:[
+      ['Commit 1786a6f: 28 files, +1,979 / -101 lines.','提交 1786a6f：28 个文件，+1979 / −101 行。'],
+      ['Night loop stopped at 01:24; measure suite ran 4 times, about 33 minutes wasted.','夜间循环 01:24 被叫停；measure 跑了 4 次，约浪费 33 分钟。'],
+      ['Rollback lost 9 test files (about 2,367 lines) and three QA tools.','回退丢掉 9 个测试文件（约 2367 行）和三个 QA 工具。'],
+      ['Audit: 246 requirements, 184 satisfied, 41 lost.','审计：246 条需求，184 条满足，41 条丢失。']
+     ],imgs:[]},
+    {d:'2026-11-12',tEn:'An app that can close',tZh:'先让它关得掉',
+     bEn:'The close flow came first. A dialog on the first click, three bottom lines, and a fast exit that keeps partial files. v0.2.2.',
+     bZh:'先做关闭流程。第一次点击弹窗，三条底线，快速退出并保留半截文件。发 v0.2.2。',
+     bullets:[
+      ['Tray / quit / cancel, tray highlighted, choice remembered.','缩到托盘 / 退出 / 取消，默认高亮托盘，选择被记住。'],
+      ['Dialog, tray and Alt+F4 paths can all still exit.','弹窗、托盘、Alt+F4 三条路都保证能退出。'],
+      ['Real-window test passed on 2026-11-12.','2026-11-12 真窗口实测通过。']
+     ],imgs:['16']},
+    {d:'2026-11-12 – 11-13',tEn:'Two batches, one contract',tZh:'两批改动，一份契约',
+     bEn:'Batch 1 joined front and back through the contract; batch 2 was pure frontend. v0.2.3 and v0.2.4.',
+     bZh:'第 1 批靠契约接通前后端；第 2 批是纯前端。发 v0.2.3 和 v0.2.4。',
+     bullets:[
+      ['Batch 1: batch progress, English code values, grouped errors, retry, folder shortcut; 209 backend tests.','第 1 批：整批进度、英文代码值、错误分类、重试、打开文件夹；后端 209 个测试。'],
+      ['Batch 2: one dialog system, 15 native confirm() calls replaced, dropdown C, +N badge.','第 2 批：统一下拉和确认框，替换 15 处原生 confirm()，下拉方案 C，+N 角标。'],
+      ['Tray icon redrawn at nine sizes, with a test.','托盘图标按九个尺寸重画，并加了测试。']
+     ],imgs:['15','17']},
+    {d:'2026-11-13',tEn:'One portable exe',tZh:'一个便携 exe',
+     bEn:'v0.2.5 packaged one portable exe, system language on first run, WebView2 detection and a login singleton.',
+     bZh:'v0.2.5 打成一个便携 exe：首次启动跟随系统语言、WebView2 检测、登录窗口单例。',
+     bullets:[
+      ['PyInstaller one-file, windowed, own icon, only web_v2.','PyInstaller 单文件、无黑窗、自带图标，只打 web_v2。'],
+      ['Language follows Windows on first run and factory reset; fallback en.','首次启动和恢复出厂跟随 Windows 语言，读不到退回 en。'],
+      ['253 Python + 8 Node tests at the tag; 256 + 8 on the final run.','打 tag 时 253 + 8，最终实跑 256 + 8。']
+     ],imgs:['18','19','20','21']}
+  ];
+  var cur=0;
+  var tlList=$('#tlList'),tlDetail=$('#tlDetail');
+  tlList.innerHTML=STAGES.map(function(s,i){
+    return '<button type="button" class="tl-item" data-i="'+i+'" aria-current="'+(i===cur?'true':'false')+'">'+
+      '<span class="tl-no">'+String(i+1).padStart(2,'0')+'</span>'+
+      '<span><span class="tl-t">'+bi(s.tEn,s.tZh)+'</span><span class="tl-d">'+s.d+'</span></span>'+
+    '</button>';
+  }).join('');
+  function renderStage(){
+    var s=STAGES[cur];
+    var html='<div class="tl-kicker">'+String(cur+1).padStart(2,'0')+' / '+String(STAGES.length).padStart(2,'0')+'</div>'+
+      '<h3>'+bi(s.tEn,s.tZh)+'</h3>'+
+      '<div class="tl-date">'+s.d+'</div>'+
+      '<p>'+bi(s.bEn,s.bZh)+'</p>'+
+      '<ul>'+s.bullets.map(function(b){return '<li>'+bi(b[0],b[1])+'</li>'}).join('')+'</ul>';
+    if(!s.imgs.length){
+      html+='<p class="small">'+bi('No screenshots from this stage are in the set.','这一阶段没有留下截图。')+'</p>';
+    }
+    if(s.imgs.length){
+      html+='<div class="shots tl-shots">'+s.imgs.map(function(id){
+        var im=IMG[id];
+        return '<div class="shot"><button type="button" data-img="'+id+'" aria-label="Open screenshot '+id+' / 查看截图 '+id+'">'+
+          '<img src="'+im.f+'" alt="'+esc(im.en+' / '+im.zh)+'" loading="lazy" decoding="async" width="'+im.w+'" height="'+im.h+'">'+
+          '</button><div class="cap">'+id+'</div></div>';
+      }).join('')+'</div>';
+    }
+    tlDetail.innerHTML=html;
+  }
+  tlList.addEventListener('click',function(e){
+    var b=e.target.closest('.tl-item');
+    if(!b)return;
+    cur=parseInt(b.getAttribute('data-i'),10);
+    $$('.tl-item').forEach(function(x){x.setAttribute('aria-current',String(x===b))});
+    renderStage();
+  });
+  renderStage();
+
+  /* ---------- before / after ---------- */
+  var cmp=$('#cmp'),rng=$('#cmpRange');
+  function setCmp(v){cmp.style.setProperty('--p',v+'%')}
+  rng.addEventListener('input',function(){setCmp(rng.value)});
+  setCmp(rng.value||50);
+
+  /* ---------- lightbox ---------- */
+  var lb=$('#lb'),lbImg=$('#lbImg'),lbCap=$('#lbCap'),lbClose=$('#lbClose'),lastFocus=null;
+  function openLB(id){
+    var im=IMG[id];
+    if(!im)return;
+    lbImg.setAttribute('src',im.f);
+    lbImg.setAttribute('alt',im.en+' / '+im.zh);
+    lbImg.setAttribute('width',String(im.w));
+    lbImg.setAttribute('height',String(im.h));
+    lbCap.innerHTML=bi(im.en,im.zh);
+    lastFocus=document.activeElement;
+    lb.hidden=false;
+    document.body.classList.add('lb-open');
+    lbClose.focus();
+  }
+  function closeLB(){
+    lb.hidden=true;
+    document.body.classList.remove('lb-open');
+    if(lastFocus&&lastFocus.focus)lastFocus.focus();
+  }
+  document.addEventListener('click',function(e){
+    var b=e.target.closest('[data-img]');
+    if(b){openLB(b.getAttribute('data-img'))}
+  });
+  lbClose.addEventListener('click',closeLB);
+  lb.addEventListener('click',function(e){if(e.target===lb)closeLB()});
+  document.addEventListener('keydown',function(e){
+    if(lb.hidden)return;
+    if(e.key==='Escape'){closeLB();return}
+    if(e.key==='Tab'){e.preventDefault();lbClose.focus()}
+  });
+
+  /* ---------- chart: fonts and size ---------- */
+  (function(){
+    var W=640,H=240,s=svgBox(W,H);
+    mount('#chartFont',s);
+    bitxt(s,0,18,'Font sets','字体套数','head','start');
+    var x0=112,maxW=W-x0-64;
+    function bar(y,v,max,cls,valEn,valZh){
+      var w=maxW*v/max;
+      var r=el('rect',{x:x0,y:y,width:w,height:26,rx:6,class:cls},s);
+      hover(r,valEn,valZh);
+      txt(s,x0+w+8,y+18,(v===53||v===20)?v+' MB':String(v),'val','start');
+    }
+    bitxt(s,x0-10,55,'before','之前','dim','end');
+    bar(38,27,27,'bar-old','27 font sets before the cut','精简前 27 套字体');
+    bitxt(s,x0-10,87,'after','之后','dim','end');
+    bar(70,5,27,'bar-new','5 font sets after the cut','精简后保留 5 套字体');
+
+    bitxt(s,0,128,'App size','安装体积','head','start');
+    bitxt(s,x0-10,165,'before','之前','dim','end');
+    bar(148,53,53,'bar-old','53 MB before the font cut','裁字体前 53MB');
+    bitxt(s,x0-10,197,'after','之后','dim','end');
+    bar(180,20,53,'bar-new','20 MB after the font cut','裁字体后 20MB');
+  })();
+
+  /* ---------- chart: audit ---------- */
+  (function(){
+    var W=640,H=84,s=svgBox(W,H);
+    mount('#chartAudit',s);
+    var clip=el('clipPath',{id:'auditClip'},s);
+    el('rect',{x:0,y:12,width:W,height:40,rx:8},clip);
+    var g=el('g',{'clip-path':'url(#auditClip)'},s);
+    var D=[
+      {v:184,cls:'seg seg-y',en:'184 satisfied',zh:'184 条满足',lab:'184'},
+      {v:7,cls:'seg seg-l',en:'7 partial',zh:'7 条部分满足',lab:''},
+      {v:41,cls:'seg seg-r',en:'41 missing',zh:'41 条丢失',lab:'41'},
+      {v:3,cls:'seg seg-o',en:'3 not started',zh:'3 条未做',lab:''},
+      {v:11,cls:'seg seg-d',en:'11 awaiting a decision',zh:'11 条待决定',lab:''}
+    ];
+    var total=0;D.forEach(function(d){total+=d.v});
+    var x=0;
+    D.forEach(function(d){
+      var w=W*d.v/total;
+      var r=el('rect',{x:x,y:12,width:w,height:40,class:d.cls},g);
+      hover(r,d.en,d.zh);
+      if(d.lab&&w>44)txt(s,x+w/2,38,d.lab,'ink','middle');
+      x+=w;
+    });
+    bitxt(s,0,76,'246 requirements · 2026-11-09','246 条需求 · 2026-11-09','dim','start');
+    txt(s,W,76,'184 / 246','dim','end');
+  })();
+
+  /* ---------- chart: tests ---------- */
+  (function(){
+    var W=640,H=260,L=46,R=14,T=34,B=46;
+    var s=svgBox(W,H);
+    mount('#chartTests',s);
+    var max=260,plotH=H-T-B,base=H-B;
+    var D=[
+      {v:119,labEn:'v0.1.12',labZh:'v0.1.12',en:'v0.1.12 · 119 Python tests',zh:'v0.1.12 · 119 个 Python 测试'},
+      {v:144,labEn:'Session B',labZh:'会话 B',en:'Session B check · 144 Python tests',zh:'会话 B 核对 · 144 个 Python 测试'},
+      {v:209,labEn:'Batch 1',labZh:'第 1 批',en:'Batch 1 backend · 209 Python tests',zh:'第 1 批后端 · 209 个 Python 测试'},
+      {v:211,labEn:'v0.2.4',labZh:'v0.2.4',en:'v0.2.4 · 211 Python tests',zh:'v0.2.4 · 211 个 Python 测试'},
+      {v:253,labEn:'v0.2.5',labZh:'v0.2.5',en:'v0.2.5 · 253 Python tests',zh:'v0.2.5 · 253 个 Python 测试'},
+      {v:256,labEn:'Final',labZh:'最终',en:'Final run · 256 Python tests',zh:'最终实跑 · 256 个 Python 测试'}
+    ];
+    bitxt(s,0,14,'Python tests','Python 测试数','head','start');
+    [0,100,200].forEach(function(t){
+      var y=base-plotH*t/max;
+      el('line',{x1:L,x2:W-R,y1:y,y2:y,class:'grid'},s);
+      txt(s,L-8,y+4,String(t),'dim','end');
+    });
+    el('line',{x1:L,x2:W-R,y1:base,y2:base,class:'axis'},s);
+    var bw=(W-L-R)/D.length;
+    D.forEach(function(d,i){
+      var h=plotH*d.v/max;
+      var x=L+i*bw+bw*0.22,w=bw*0.56,y=base-h;
+      var r=el('rect',{x:x,y:y,width:w,height:h,rx:7,class:i===D.length-1?'bar-final':'bar'},s);
+      hover(r,d.en,d.zh);
+      txt(s,x+w/2,y-8,String(d.v),'val','middle');
+      bitxt(s,x+w/2,base+20,d.labEn,d.labZh,'axl','middle');
+    });
+  })();
+})();
+</script>
+</body>
+</html>
